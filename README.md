@@ -13,7 +13,7 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-然后用浏览器打开 **http://127.0.0.1:8893/**。保持终端运行，按 `Ctrl+C` 停止网站。
+然后用浏览器打开 [http://127.0.0.1:8893/](http://127.0.0.1:8893/)。保持终端运行，按 `Ctrl+C` 停止网站。
 
 `main.py` 会优先使用本目录的 `.venv`，从其他目录用它的绝对路径启动也可以。无需启动桌面 App，也无需执行 npm、构建或打包命令。
 
