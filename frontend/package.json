@@ -1,0 +1,20 @@
+{
+  "name": "ficagent-workbench-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "check": "node --check src/modules/workbench/pages/format.js && vite build",
+    "test": "node --test src/modules/workbench/*.test.mjs"
+  },
+  "dependencies": {
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.10",
+    "vite": "8.3.4"
+  }
+}
