@@ -1,4 +1,4 @@
-"""Ficagent local Flask application factory."""
+"""Standalone Ficagent Flask application factory."""
 
 import re
 
@@ -6,7 +6,7 @@ from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from .config import Config
-from .modules.workbench.coze import GatewayError
+from .modules.workbench.errors import GatewayError
 from .modules.workbench.routes import workbench
 from .modules.workbench.service import WorkbenchService
 
