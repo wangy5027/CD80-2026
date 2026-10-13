@@ -1,5 +1,9 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { chatResponse, fileResponse, readSse, request } from './api.js';
+import { useAgentPlatform, newRequestKey } from './useAgentPlatform.js';
+import { accountDraftKey, readDraft, writeDraft, clearDraft, clearDraftIfUnchanged } from './draftStore.js';
+import { applyAssistantSearchEvent, mergeCompletedAssistantMessage, normalizeSearchMode, publicSearchSources, publicSkillsUsed, publicToolsUsed } from './search.js';
+import { parseExploreHash } from '../explore/model.js';
 
 const builtinAgents = [
   { id: 'assistant', name: 'Ficagent助手', description: '通用文字助手', glyph: 'F' },
@@ -16,6 +20,17 @@ export function publicRuntime(value) {
     model: text(value?.model),
     configured: value?.configured === true,
     message: text(value?.message),
+    searchAvailable: value?.searchAvailable === true,
+    skills: Array.isArray(value?.skills) ? value.skills.slice(0, 50).flatMap((item) => {
+      if (typeof item?.name !== 'string' || !item.name || item.name.length > 80) return [];
+      return [{ name: item.name, description: text(item.description).slice(0, 240) }];
+    }) : [],
+    skillWarnings: Array.isArray(value?.skillWarnings) ? value.skillWarnings.map(() => '部分技能未能加载。').slice(0, 20) : [],
+    tools: Array.isArray(value?.tools) ? value.tools.slice(0, 100).flatMap((item) => {
+      if (typeof item?.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(item.name)) return [];
+      return [{ name: item.name, description: text(item.description).slice(0, 240), available: item.available === true,
+        capabilities: Array.isArray(item.capabilities) ? item.capabilities.filter((part) => typeof part === 'string' && /^[a-z][a-z0-9_-]{0,39}$/.test(part)).slice(0, 12) : [] }];
+    }) : [],
   };
 }
 
@@ -54,9 +69,12 @@ export function useWorkbench() {
     sidebarCollapsed: localStorage.getItem('cd80-sidebar-collapsed') === '1',
     currentTaskId: null, currentTask: null, taskModelUnavailable: false,
     openingTaskId: null, openTaskError: null, view: 'home', draft: '', attachedFileIds: [], showJump: false,
-    streaming: false, streamError: '', modal: null, modalBusy: false,
+    streaming: false, streamError: '', generationStatus: '',
+    searchMode: normalizeSearchMode(sessionStorage.getItem('cd80-search-mode')),
+    modal: null, modalBusy: false,
     previewUrl: null, previewText: null, previewLoaded: false, searchQuery: '', manualRefreshing: false,
     runtime: null, runtimeLoading: false, runtimeError: '',
+    selectedSkillNames: [], interactionMode: 'platform', dispatchKey: '', dispatching: false,
   });
   const notices = ref([]);
   const filePicker = ref(null);
@@ -68,6 +86,7 @@ export function useWorkbench() {
   const scheduleAt = ref('');
   const uploads = reactive(new Map());
   const drafts = new Map();
+  let draftReady = false;
   const uploadControllers = new Set();
   const notifiedSchedules = new Set();
   let notifiedStorageKey = '';
@@ -107,7 +126,8 @@ export function useWorkbench() {
   const uploadCount = computed(() => uploads.get(uploadKey()) || 0);
   const activePreviewFile = computed(() => s.files.find((file) => String(file.id) === String(s.modal?.id)) || null);
   const previewExtension = computed(() => String(activePreviewFile.value?.name || '').split('.').pop().toLowerCase());
-  const generationLabel = computed(() => s.currentTask?.messages?.at(-1)?.content ? '正在回复' : '等待模型响应');
+  const generationLabel = computed(() => s.dispatching ? '正在理解需求与选择应用' : s.generationStatus || (s.currentTask?.messages?.at(-1)?.content ? '正在回复' : '等待模型响应'));
+  const platform = useAgentPlatform(s, { toast, refreshState, openTask });
 
   function toast(message, error = false) {
     const id = ++toastSequence;
@@ -118,15 +138,66 @@ export function useWorkbench() {
     return s.currentTaskId ? 'task:' + s.currentTaskId : 'home:' + s.selectedAgentId + ':' + (s.selectedProjectId || '');
   }
   function uploadKey(epoch = authEpoch, key = contextKey()) { return String(epoch) + ':' + key; }
+  const composerKey = context => accountDraftKey(s.user?.id, 'composer', context);
+  function savedComposer(context) {
+    const value = drafts.get(context) || readDraft(composerKey(context));
+    return { draft: typeof value?.draft === 'string' ? value.draft : '', fileIds: Array.isArray(value?.fileIds) ? [...value.fileIds] : [], skillNames: publicSkillsUsed(value?.skillNames).slice(0, 3) };
+  }
+  function saveComposer(context, value) {
+    drafts.set(context, { draft: value.draft, fileIds: [...value.fileIds], skillNames: [...(value.skillNames || [])] });
+    if (!value.draft && !value.fileIds.length && !value.skillNames?.length) clearDraft(composerKey(context));
+    else writeDraft(composerKey(context), value);
+  }
+  function saveNavigation() {
+    if (s.authenticated && draftReady) writeDraft(accountDraftKey(s.user?.id, 'composer', 'navigation'), {
+      agentId: s.selectedAgentId, projectId: s.selectedProjectId, interactionMode: s.interactionMode,
+    });
+  }
+  function restoreComposerNavigation() {
+    const navigation = readDraft(accountDraftKey(s.user?.id, 'composer', 'navigation'));
+    if (agents.value.some(item => item.id === navigation?.agentId)) s.selectedAgentId = navigation.agentId;
+    if (s.projects.some(item => item.id === navigation?.projectId)) s.selectedProjectId = navigation.projectId;
+    if (['chat', 'platform'].includes(navigation?.interactionMode)) s.interactionMode = navigation.interactionMode;
+    restoreDraft();
+  }
   function rememberDraft() {
-    drafts.set(contextKey(), { draft: s.draft, fileIds: [...s.attachedFileIds] });
+    if (!s.authenticated || !draftReady) return;
+    saveComposer(contextKey(), { draft: s.draft, fileIds: [...s.attachedFileIds], skillNames: [...s.selectedSkillNames] });
+    saveNavigation();
   }
   function restoreDraft() {
-    const saved = drafts.get(contextKey());
-    s.draft = saved?.draft || '';
-    s.attachedFileIds = (saved?.fileIds || []).filter((id) => s.files.some((file) => String(file.id) === String(id)));
+    const saved = savedComposer(contextKey());
+    s.draft = saved.draft;
+    s.selectedSkillNames = saved.skillNames;
+    if (s.selectedSkillNames.length) s.interactionMode = 'chat';
+    s.attachedFileIds = saved.fileIds.filter((id) => s.files.some((file) => String(file.id) === String(id)));
+    draftReady = true;
+    saveNavigation();
+  }
+  function selectSkill(name) {
+    if (s.streaming) { toast('请先等待或停止当前回复。'); return false; }
+    if (!s.runtime?.skills?.some(item => item.name === name)) { toast('技能已不可用，请刷新目录。', true); return false; }
+    if (!s.selectedSkillNames.includes(name)) {
+      if (s.selectedSkillNames.length >= 3) { toast('一条对话最多选择 3 个技能，请先移除一个。', true); return false; }
+      s.selectedSkillNames.push(name);
+    }
+    s.interactionMode = 'chat';
+    setView('home');
+    rememberDraft();
+    toast('已选择 ' + name + '，将在下一条消息中加载。');
+    nextTick(() => composer.value?.focus());
+    return true;
+  }
+  function removeSkill(name) {
+    if (s.streaming) return;
+    s.selectedSkillNames = s.selectedSkillNames.filter(item => item !== name);
+    rememberDraft();
   }
   function updateDraft(value) { s.draft = value; rememberDraft(); }
+  function updateSearchMode(value) {
+    s.searchMode = normalizeSearchMode(value);
+    sessionStorage.setItem('cd80-search-mode', s.searchMode);
+  }
   function cancelTaskOpening() {
     taskSequence++;
     taskAbort?.abort();
@@ -144,10 +215,14 @@ export function useWorkbench() {
     s.previewLoaded = false;
   }
   function invalidateAccountRequests() {
+    if (s.dispatchKey) request('/agent-dispatch/' + encodeURIComponent(s.dispatchKey) + '/cancel', { method: 'POST' }).catch(() => {});
     authEpoch++;
     streamAbort?.abort();
     streamAbort = null;
     s.streaming = false;
+    s.generationStatus = '';
+    s.dispatching = false;
+    s.dispatchKey = '';
     for (const controller of uploadControllers) controller.abort();
     uploadControllers.clear();
     uploads.clear();
@@ -158,9 +233,11 @@ export function useWorkbench() {
     refreshTimer = null;
   }
   function clearAccountData() {
+    draftReady = false;
     drafts.clear();
     s.draft = '';
     s.attachedFileIds = [];
+    s.selectedSkillNames = [];
     s.currentTask = null;
     s.currentTaskId = null;
     s.taskModelUnavailable = false;
@@ -171,6 +248,7 @@ export function useWorkbench() {
     s.runtime = null;
     s.runtimeError = '';
     s.runtimeLoading = false;
+    s.interactionMode = 'platform';
     s.selectedProjectId = '';
     localStorage.removeItem('cd80-project');
     s.modal = null;
@@ -243,7 +321,17 @@ export function useWorkbench() {
       if (epoch !== authEpoch) return;
       applySession(session, epoch);
       epoch = authEpoch;
-      if (s.authenticated) await Promise.all([loadState(epoch), loadRuntime(epoch)]);
+      if (s.authenticated) {
+        await Promise.all([loadState(epoch), loadRuntime(epoch)]);
+        if (epoch === authEpoch) {
+          restoreComposerNavigation();
+          const saved = localStorage.getItem('cd80-last-task:' + s.user?.id);
+          const savedView = localStorage.getItem('cd80-last-view:' + s.user?.id);
+          if (!parseExploreHash(window.location.hash).isExplore && saved && s.tasks.some(task => task.id === saved)) await openTask(saved);
+          if (parseExploreHash(window.location.hash).isExplore) s.view = 'explore';
+          else if (['applications', 'files', 'schedule', 'extensions', 'settings', 'data', 'explore'].includes(savedView)) setView(savedView);
+        }
+      }
     } catch (error) {
       if (epoch === authEpoch) s.authError = error.message;
     } finally { s.booting = false; }
@@ -261,7 +349,10 @@ export function useWorkbench() {
       if (epoch !== authEpoch || s.streaming || s.modalBusy) return false;
       const changed = applySession(session, epoch);
       epoch = authEpoch;
-      if (changed && s.authenticated) await Promise.all([loadState(epoch), loadRuntime(epoch)]);
+      if (changed && s.authenticated) {
+        await Promise.all([loadState(epoch), loadRuntime(epoch)]);
+        if (epoch === authEpoch) restoreComposerNavigation();
+      }
       return s.authenticated;
     } catch (error) { if (!silent && epoch === authEpoch) toast(error.message, true); return false; }
   }
@@ -282,7 +373,13 @@ export function useWorkbench() {
   }
   function setView(view) {
     cancelTaskOpening();
+    if (view === 'explore' && !parseExploreHash(window.location.hash).isExplore) {
+      history.pushState(null, '', location.pathname + location.search + '#explore');
+    } else if (view !== 'explore' && parseExploreHash(window.location.hash).isExplore) {
+      history.pushState(null, '', location.pathname + location.search);
+    }
     s.view = view;
+    if (s.user?.id) localStorage.setItem('cd80-last-view:' + s.user.id, view);
     s.streamError = '';
   }
   function toggleSidebar() {
@@ -294,6 +391,7 @@ export function useWorkbench() {
     cancelTaskOpening();
     rememberDraft();
     s.currentTaskId = null;
+    if (s.user?.id) { localStorage.removeItem('cd80-last-task:' + s.user.id); localStorage.setItem('cd80-last-view:' + s.user.id, 'home'); }
     s.currentTask = null;
     restoreDraft();
     resetTaskModel();
@@ -315,6 +413,7 @@ export function useWorkbench() {
       if (sequence !== taskSequence || s.streaming) return;
       rememberDraft();
       s.currentTaskId = task.id || requestedId;
+      if (s.user?.id) { localStorage.setItem('cd80-last-task:' + s.user.id, s.currentTaskId); localStorage.setItem('cd80-last-view:' + s.user.id, 'home'); }
       s.currentTask = task;
       s.streamError = '';
       if (task.agentId) s.selectedAgentId = agents.value.some((item) => String(item.id) === String(task.agentId)) ? task.agentId : 'assistant';
@@ -342,6 +441,7 @@ export function useWorkbench() {
     cancelTaskOpening();
     rememberDraft();
     s.selectedAgentId = id;
+    s.interactionMode = 'chat';
     localStorage.setItem('cd80-agent', String(id));
     s.view = 'home';
     s.currentTask = null;
@@ -400,10 +500,11 @@ export function useWorkbench() {
       if (!s.authenticated) throw new Error('登录未完成，请重试。');
       await Promise.all([loadState(epoch), loadRuntime(epoch)]);
       if (epoch !== authEpoch) return;
+      restoreComposerNavigation();
       s.authEmail = '';
       s.authName = '';
       s.authPassword = '';
-      s.view = 'home';
+      s.view = parseExploreHash(window.location.hash).isExplore ? 'explore' : 'home';
     } catch (error) {
       if (epoch === authEpoch) {
         s.authError = error.message;
@@ -505,15 +606,17 @@ export function useWorkbench() {
       if (epoch !== authEpoch) return;
       if (selected.target === 'project') {
         if (String(s.selectedProjectId) === String(selected.id)) { s.selectedProjectId = ''; localStorage.removeItem('cd80-project'); }
-        for (const key of drafts.keys()) if (key.startsWith('home:') && key.endsWith(':' + selected.id)) drafts.delete(key);
+        for (const key of drafts.keys()) if (key.startsWith('home:') && key.endsWith(':' + selected.id)) { drafts.delete(key); clearDraft(composerKey(key)); }
       }
       if (selected.target === 'task') {
         drafts.delete('task:' + selected.id);
+        clearDraft(composerKey('task:' + selected.id));
         if (String(s.currentTaskId) === String(selected.id)) { s.currentTaskId = null; s.currentTask = null; restoreDraft(); }
       }
       if (selected.target === 'file') {
         s.attachedFileIds = s.attachedFileIds.filter((id) => String(id) !== String(selected.id));
-        for (const saved of drafts.values()) saved.fileIds = saved.fileIds.filter((id) => String(id) !== String(selected.id));
+        for (const [key, saved] of drafts) saveComposer(key, { ...saved, fileIds: saved.fileIds.filter((id) => String(id) !== String(selected.id)) });
+        rememberDraft();
       }
       await loadState(epoch);
       closeModal(true);
@@ -544,8 +647,9 @@ export function useWorkbench() {
     s.attachedFileIds = s.attachedFileIds.filter((value) => String(value) !== String(id));
     rememberDraft();
   }
-  function chooseFiles(kind) {
-    selectedUpload = { epoch: authEpoch, kind, context: contextKey(), projectId: s.selectedProjectId };
+  function chooseFiles(kind, options = {}) {
+    selectedUpload = { epoch: authEpoch, kind, context: contextKey(), projectId: s.selectedProjectId, onUploaded: options.onUploaded };
+    if (filePicker.value) filePicker.value.multiple = kind !== 'agent';
     filePicker.value?.click();
   }
   async function uploadFiles(event) {
@@ -559,6 +663,7 @@ export function useWorkbench() {
     const controller = new AbortController();
     uploadControllers.add(controller);
     let succeeded = 0;
+    const uploaded = [];
     try {
       for (const file of files) {
         if (selected.epoch !== authEpoch) break;
@@ -569,10 +674,14 @@ export function useWorkbench() {
           const result = await request('/files', { method: 'POST', body: form, signal: controller.signal });
           if (selected.epoch !== authEpoch) break;
           succeeded++;
+          if (result?.id) {
+            uploaded.push(result);
+            s.files = [result, ...s.files.filter(item => item.id !== result.id)];
+          }
           if (selected.kind === 'composer' && result?.id) {
-            const saved = drafts.get(selected.context) || { draft: '', fileIds: [] };
+            const saved = savedComposer(selected.context);
             if (!saved.fileIds.some((id) => String(id) === String(result.id))) saved.fileIds.push(result.id);
-            drafts.set(selected.context, saved);
+            saveComposer(selected.context, saved);
             if (selected.context === contextKey()) s.attachedFileIds = [...saved.fileIds];
           }
         } catch (error) { if (selected.epoch === authEpoch) toast(file.name + '：' + error.message, true); }
@@ -586,6 +695,8 @@ export function useWorkbench() {
     } finally { uploadControllers.delete(controller); }
     if (selected.epoch !== authEpoch) return;
     await refreshState();
+    if (selected.epoch !== authEpoch || !s.authenticated) return;
+    if (uploaded.length) selected.onUploaded?.(uploaded);
     if (succeeded) toast('已上传 ' + succeeded + ' 个文件。');
   }
   async function downloadFile(id) {
@@ -642,6 +753,8 @@ export function useWorkbench() {
     const last = [...(s.currentTask?.messages || [])].reverse().find((message) => message.role === 'user');
     if (!last) { toast('这条任务没有可恢复的提问。', true); return; }
     s.draft = typeof last.content === 'string' ? last.content : String(last.content ?? '');
+    s.selectedSkillNames = publicSkillsUsed(last.skillNames).slice(0, 3);
+    if (s.selectedSkillNames.length) s.interactionMode = 'chat';
     const requested = Array.isArray(last.attachments) ? last.attachments : [];
     s.attachedFileIds = [...new Set(requested.map((file) => String(file?.id || '')).filter((id) => s.files.some((file) => String(file.id) === id)))];
     rememberDraft();
@@ -675,7 +788,7 @@ export function useWorkbench() {
     return typeof message?.content === 'string' ? message.content : JSON.stringify(message?.content ?? '');
   }
   function renderAssistant(message, index) {
-    return window.FicagentFormat.renderAssistant(messageContent(message), index);
+    return window.FicagentFormat.renderAssistant(messageContent(message), index, publicSearchSources(message?.sources));
   }
   async function sendMessage() {
     if (s.streaming) return;
@@ -695,14 +808,27 @@ export function useWorkbench() {
     cancelTaskOpening();
     const epoch = authEpoch;
     const attached = [...s.attachedFileIds];
-    const taskId = s.currentTaskId;
+    const skillNames = [...s.selectedSkillNames];
+    const sentContext = contextKey();
+    rememberDraft();
+    const sentKey = composerKey(sentContext), sentSnapshot = readDraft(sentKey);
+    function acceptSentDraft() {
+      s.selectedSkillNames = [];
+      clearDraftIfUnchanged(sentKey, sentSnapshot);
+      drafts.delete(sentContext);
+      rememberDraft();
+    }
+    let taskId = s.currentTaskId;
     s.draft = '';
     s.attachedFileIds = [];
-    rememberDraft();
     s.streamError = '';
+    s.generationStatus = '';
     s.currentTask ||= { id: null, title: message.slice(0, 28), modelId: s.selectedModelId, messages: [] };
     s.currentTask.messages ||= [];
-    s.currentTask.messages.push({ role: 'user', content: message, attachments: attached.map((id) => ({ id, name: s.files.find((file) => String(file.id) === String(id))?.name || '文件' })) });
+    s.currentTask.messages.push({ role: 'user', content: message, attachments: attached.map((id) => {
+      const file = s.files.find(item => String(item.id) === String(id));
+      return { id, name: file?.name || '文件', md5: file?.md5, sha256: file?.sha256 };
+    }) });
     s.currentTask.messages.push({ role: 'assistant', content: '', streaming: true });
     s.streaming = true;
     s.view = 'home';
@@ -712,9 +838,36 @@ export function useWorkbench() {
     let sawDone = false;
     let gotMeta = false;
     try {
+      if (s.interactionMode === 'platform' && !skillNames.length) {
+        s.dispatchKey = newRequestKey();
+        s.dispatching = true;
+        const decision = await request('/agent-dispatch', { method: 'POST', signal: controller.signal, body: {
+          message, taskId: taskId || null, projectId: s.selectedProjectId || null, fileIds: attached,
+          searchMode: s.searchMode, idempotencyKey: s.dispatchKey,
+        } });
+        if (epoch !== authEpoch || controller.signal.aborted) return;
+        s.dispatching = false;
+        s.dispatchKey = '';
+        if (decision.taskId) {
+          taskId = decision.taskId;
+          s.currentTaskId = taskId;
+          s.currentTask.id = taskId;
+          if (s.user?.id) localStorage.setItem('cd80-last-task:' + s.user.id, taskId);
+        }
+        if (decision.intent !== 'chat') {
+          gotMeta = true; sawDone = true;
+          acceptSentDraft();
+          const updated = await request('/tasks/' + encodeURIComponent(taskId), { signal: controller.signal });
+          if (epoch !== authEpoch || controller.signal.aborted) return;
+          s.currentTask = updated;
+          await platform.refresh();
+          return;
+        }
+      }
       const response = await chatResponse({
         message, agentId: s.selectedAgentId, modelId: s.selectedModelId,
         projectId: s.selectedProjectId || null, taskId: taskId || null, fileIds: attached,
+        searchMode: s.searchMode, ...(skillNames.length ? { skillNames } : {}),
       }, controller.signal);
       for await (const item of readSse(response.body)) {
         if (epoch !== authEpoch) return;
@@ -723,14 +876,19 @@ export function useWorkbench() {
           gotMeta = true;
           if (data.taskId) { s.currentTaskId = data.taskId; s.currentTask.id = data.taskId; }
           if (data.title) s.currentTask.title = data.title;
-          rememberDraft();
+          if (s.user?.id && s.currentTaskId) localStorage.setItem('cd80-last-task:' + s.user.id, s.currentTaskId);
+          acceptSentDraft();
         } else if (item.event === 'token') {
           const last = s.currentTask?.messages?.at(-1);
           if (last?.role === 'assistant') last.content = String(last.content || '') + String(data.text || '');
+          s.generationStatus = '';
+        } else if (['skill_loaded', 'search_status', 'search_sources', 'tool_status'].includes(item.event)) {
+          const last = s.currentTask?.messages?.at(-1);
+          s.generationStatus = applyAssistantSearchEvent(last, item.event, data) || s.generationStatus;
         } else if (item.event === 'error') s.streamError = data.message || data.error || '模型返回错误。';
         else if (item.event === 'done') {
           sawDone = true;
-          if (data.task?.messages) s.currentTask = data.task;
+          if (data.task?.messages) s.currentTask = mergeCompletedAssistantMessage(data.task, s.currentTask?.messages?.at(-1));
           if (data.task?.id) s.currentTaskId = data.task.id;
           break;
         }
@@ -744,12 +902,16 @@ export function useWorkbench() {
         s.currentTask?.messages?.splice(-2, 2);
         s.draft = message;
         s.attachedFileIds = attached;
+        s.selectedSkillNames = skillNames;
         if (!taskId) { s.currentTask = null; s.currentTaskId = null; }
         rememberDraft();
       }
     } finally {
       if (epoch !== authEpoch) return;
       s.streaming = false;
+      s.generationStatus = '';
+      s.dispatching = false;
+      s.dispatchKey = '';
       streamAbort = null;
       const last = s.currentTask?.messages?.at(-1);
       if (last?.streaming) { delete last.streaming; if (!last.content) s.currentTask.messages.pop(); }
@@ -761,9 +923,13 @@ export function useWorkbench() {
   async function stopMessage() {
     if (!s.streaming) return;
     const id = s.currentTaskId;
+    const dispatchKey = s.dispatchKey;
     s.streamError = '已停止生成。';
     streamAbort?.abort();
-    if (id) {
+    if (dispatchKey) {
+      try { await request('/agent-dispatch/' + encodeURIComponent(dispatchKey) + '/cancel', { method: 'POST' }); }
+      catch (error) { toast(error.message, true); }
+    } else if (id) {
       try { await request('/stop', { method: 'POST', body: { taskId: id } }); }
       catch (error) { toast(error.message, true); }
     }
@@ -812,17 +978,35 @@ export function useWorkbench() {
     }
     if (event.key === 'Escape' && s.modal) closeModal();
   }
+  function onLocationChange() {
+    if (!s.authenticated) return;
+    if (parseExploreHash(window.location.hash).isExplore) {
+      cancelTaskOpening();
+      s.view = 'explore';
+    } else if (s.view === 'explore') s.view = 'home';
+  }
+  watch(() => s.view, (view) => {
+    if (!s.authenticated) return;
+    if (view === 'explore' && !parseExploreHash(window.location.hash).isExplore) {
+      history.pushState(null, '', location.pathname + location.search + '#explore');
+    } else if (view !== 'explore' && parseExploreHash(window.location.hash).isExplore) {
+      history.pushState(null, '', location.pathname + location.search);
+    }
+  });
   watch(() => s.currentTask?.messages?.at(-1)?.content, () => {
     const box = conversation.value;
     const follow = !box || box.scrollHeight - box.scrollTop - box.clientHeight < 96;
     if (follow) nextTick(scrollConversation);
   });
+  watch(() => s.interactionMode, saveNavigation, { flush: 'sync' });
   onMounted(() => {
     bootstrap();
     scheduleTimer = setInterval(checkSchedules, 15000);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
     document.addEventListener('keydown', onKeydown);
+    window.addEventListener('popstate', onLocationChange);
+    window.addEventListener('hashchange', onLocationChange);
   });
   onUnmounted(() => {
     invalidateAccountRequests();
@@ -830,17 +1014,20 @@ export function useWorkbench() {
     window.removeEventListener('focus', onFocus);
     document.removeEventListener('visibilitychange', onVisibility);
     document.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('popstate', onLocationChange);
+    window.removeEventListener('hashchange', onLocationChange);
   });
 
   return {
+    platform,
     s, notices, filePicker, composer, conversation, dialog, projectName, scheduleTitle, scheduleAt,
     agents, agent, model, project, recentTasks, searchResults, visibleFiles, sortedSchedules, attachedFiles,
     uploadCount, activePreviewFile, previewExtension, generationLabel, formatDate, relativeTime, fileSize,
-    toast, updateDraft, refreshState, manualRefresh, setView, toggleSidebar, newTask, openTask, selectAgent, selectProject,
+    toast, updateDraft, updateSearchMode, selectSkill, removeSkill, refreshState, manualRefresh, setView, toggleSidebar, newTask, openTask, selectAgent, selectProject,
     selectModel, submitAuth, logout, showModal, closeModal, submitModal, toggleSchedule, confirmDelete,
     toggleAttachment, removeAttachment, chooseFiles, uploadFiles, downloadFile, previewFile, scrollConversation,
     restoreLastPrompt, copyText, messageContent, renderAssistant, sendMessage, stopMessage, setPrompt,
-    onConversationScroll,
+    onConversationScroll, publicSearchSources, publicSkillsUsed, publicToolsUsed,
     imageExtensions,
   };
 }

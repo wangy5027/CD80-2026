@@ -65,6 +65,18 @@ def api(endpoint):
     user_id = auth["user"]["id"]
     if key == "/runtime" and method == "GET":
         return jsonify(backend.model_status())
+    if key == "/tools" and method == "GET":
+        return jsonify(backend.tools_catalog())
+    tool_execute = re.fullmatch(r"/tools/([A-Za-z][A-Za-z0-9_-]{0,63})/execute", key)
+    if tool_execute and method == "POST":
+        return jsonify(backend.execute_tool(tool_execute.group(1), json_body()))
+    if key == "/skills" and method == "GET":
+        return jsonify(backend.skills_catalog())
+    skill = re.fullmatch(r"/skills/([a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)", key)
+    if skill and method == "GET":
+        response = jsonify(backend.load_skill(skill.group(1)))
+        response.headers["Cache-Control"] = "no-store"
+        return response
     if key == "/chat" and method == "POST":
         generator, abandon = backend.start_chat(auth, json_body())
         response = Response(stream_with_context(generator), mimetype="text/event-stream")

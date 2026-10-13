@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="240" viewBox="0 0 300 240" fill="none">
+  <defs>
+    <linearGradient id="ribbon" x1="66" y1="41" x2="218" y2="169" gradientUnits="userSpaceOnUse"><stop stop-color="#f3fffd" stop-opacity=".95"/><stop offset=".25" stop-color="#83dcd3" stop-opacity=".8"/><stop offset=".5" stop-color="#d4f8ef" stop-opacity=".9"/><stop offset=".72" stop-color="#40a99e" stop-opacity=".8"/><stop offset="1" stop-color="#bbebe1" stop-opacity=".95"/></linearGradient>
+    <linearGradient id="edge" x1="77" y1="40" x2="225" y2="183" gradientUnits="userSpaceOnUse"><stop stop-color="white"/><stop offset=".4" stop-color="#edfff9" stop-opacity=".4"/><stop offset="1" stop-color="#2f8a85" stop-opacity=".5"/></linearGradient>
+    <radialGradient id="core" cx=".3" cy=".22" r=".85"><stop stop-color="#fff" stop-opacity=".85"/><stop offset=".45" stop-color="#b6ece1" stop-opacity=".3"/><stop offset="1" stop-color="#58b9ae" stop-opacity=".18"/></radialGradient>
+    <radialGradient id="shadow"><stop stop-color="#4c9990" stop-opacity=".23"/><stop offset="1" stop-color="#83c7bd" stop-opacity="0"/></radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#257d73" flood-opacity=".1"/></filter>
+  </defs>
+  <ellipse cx="152" cy="218" rx="83" ry="17" fill="url(#shadow)"/>
+  <g filter="url(#soft)">
+    <circle cx="150" cy="113" r="76" fill="url(#core)" stroke="#d3f5ec" stroke-opacity=".8"/>
+    <ellipse cx="150" cy="113" rx="78" ry="41" transform="rotate(-38 150 113)" stroke="url(#ribbon)" stroke-width="24"/>
+    <ellipse cx="150" cy="113" rx="78" ry="41" transform="rotate(33 150 113)" stroke="url(#ribbon)" stroke-width="23"/>
+    <ellipse cx="150" cy="113" rx="39" ry="79" transform="rotate(-12 150 113)" stroke="url(#ribbon)" stroke-width="22"/>
+    <path d="M76 108C98 155 175 175 213 129" stroke="url(#ribbon)" stroke-width="23" stroke-linecap="round"/>
+    <path d="M94 62C67 88 78 122 115 145M115 44C88 93 123 173 166 183M193 57C148 48 90 78 79 113" stroke="url(#edge)" stroke-width="2" stroke-linecap="round"/>
+    <path d="M134 40C179 27 229 74 218 122M88 151C118 184 190 169 212 135" stroke="white" stroke-opacity=".65" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -46,7 +46,7 @@ class ChatProvider(BaseHTTPRequestHandler):
                 self.frame("data: [DONE]\n\n")
             self.wfile.write(b"0\r\n\r\n")
             self.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
 
 

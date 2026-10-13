@@ -1,5 +1,6 @@
 """Workbench business operations and chat orchestration."""
 
+import hashlib
 import json
 import os
 import re
@@ -13,6 +14,7 @@ from .auth import LocalAuth
 from .errors import GatewayError
 from .graph_runtime import GraphRuntime
 from .store import StateStore
+from .tool_registry import ToolContext
 
 
 BUILTINS = [
@@ -49,9 +51,15 @@ class WorkbenchService:
         self.active = {}
         self._lock = threading.RLock()
         self._file_locks = {}
+        self.platform = None
+        self.explore = None
 
     def close(self):
         """Stop ongoing generation and close provider response streams."""
+        if self.platform is not None:
+            self.platform.close()
+        if self.explore is not None:
+            self.explore.close()
         with self._lock:
             active = list(self.active.values())
         for run in active:
@@ -84,7 +92,38 @@ class WorkbenchService:
     def model_status(self):
         """Expose configuration presence without a secret, URL, or false health claim."""
         configured = bool(self.runtime.provider.key)
-        return {"provider": "Gitee AI", "model": self.model_id, "configured": configured, "message": "模型密钥已配置；实际可用性将在对话时验证。" if configured else "请在网站 .env 中配置 GITEE_AI_API_KEY。"}
+        skills = self.runtime.skills.catalog()
+        return {"provider": "Gitee AI", "model": self.model_id, "configured": configured,
+                "message": "模型密钥已配置；实际可用性将在对话时验证。" if configured else "请在网站 .env 中配置 GITEE_AI_API_KEY。",
+                "searchAvailable": self.runtime.tools.has_capability("search"),
+                "skills": skills, "skillWarnings": list(self.runtime.skills.warnings),
+                "tools": self.runtime.tools.catalog()}
+
+    def tools_catalog(self):
+        return {"tools": self.runtime.tools.catalog(include_parameters=True)}
+
+    def execute_tool(self, name, body):
+        """Execute one explicitly registered tool call for an authenticated request."""
+        arguments = body.get("arguments")
+        if not isinstance(arguments, dict):
+            raise GatewayError("工具参数必须是 JSON 对象。", 400)
+        query = arguments.get("query")
+        result = self.runtime.tools.execute(
+            name, arguments,
+            ToolContext(threading.Event(), lambda _response: None, lambda _event: None,
+                        query=query if isinstance(query, str) else ""),
+            call_count=0,
+        )
+        return {"name": name, "result": result.content, "sources": result.sources or []}
+
+    def skills_catalog(self):
+        return {"skills": self.runtime.skills.catalog(), "warnings": list(self.runtime.skills.warnings)}
+
+    def load_skill(self, name):
+        try:
+            return self.runtime.skills.load(name)
+        except ValueError:
+            raise GatewayError("Skill 不存在或无法加载。", 404) from None
 
     def login(self, kind, body):
         """Authenticate or register locally and return the local session cookie."""
@@ -115,6 +154,21 @@ class WorkbenchService:
 
     def state(self, user_id):
         """Return all current account state with private bindings hidden."""
+        # Older uploads predate content fingerprints. Fill them from the stored
+        # bytes once, while preserving any existing SHA256 approval bindings.
+        for item in self.store.get(user_id)["files"]:
+            if item.get("md5") and item.get("sha256"):
+                continue
+            try:
+                stream, _, lock = self.open_file(user_id, item["id"])
+            except GatewayError as error:
+                if error.status == 404:
+                    continue  # Keep a legacy missing-file record visible.
+                raise
+            try:
+                stream.close()
+            finally:
+                lock.release()
         state = self.store.get(user_id)
         state.pop("bindings", None)
         state["tasks"] = sorted((public_task(task) for task in state["tasks"]), key=lambda task: task.get("updatedAt", ""), reverse=True)
@@ -181,7 +235,7 @@ class WorkbenchService:
         return {"ok": True}
 
     def upload_file(self, user_id, upload, project_id):
-        """Save one uploaded file under the authenticated account."""
+        """Reuse identical uploads only within the same account/project/name."""
         if upload is None:
             raise GatewayError("请选择文件。", 400)
         state = self.store.get(user_id)
@@ -190,19 +244,62 @@ class WorkbenchService:
         data = upload.read(30 * 1024 * 1024 + 1)
         if len(data) > 30 * 1024 * 1024:
             raise GatewayError("单个文件不得超过 30 MB。", 413)
-        file_id = str(uuid4())
-        name = Path(upload.filename or "").name.replace("\r", "").replace("\n", "").replace("\x00", "")[:180]
-        metadata = {"id": file_id, "name": name, "size": len(data), "type": upload.content_type or "application/octet-stream", "projectId": project_id, "createdAt": now_iso()}
-        target = self.store.directory(user_id) / "files" / file_id
-        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        try:
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(data)
-            self.store.update(user_id, lambda current: current["files"].insert(0, metadata))
-        except BaseException:
-            target.unlink(missing_ok=True)
-            raise
-        return metadata
+        original_name = Path(upload.filename or "").name.replace("\r", "").replace("\n", "").replace("\x00", "")
+        name = original_name[:180]
+        md5 = hashlib.md5(data, usedforsecurity=False).hexdigest()
+        sha256 = hashlib.sha256(data).hexdigest()
+        # Serialize discovery and insertion so concurrent identical requests do
+        # not both create a file. This reserved lock key cannot be a file UUID.
+        with self._file_lock(user_id, "_uploads"):
+            state = self.store.get(user_id)
+            for item in state["files"]:
+                if item.get("projectId", "") != project_id or item.get("originalName", item["name"]) != original_name or item["size"] != len(data):
+                    continue
+                try:
+                    stream, existing, lock = self.open_file(user_id, item["id"])
+                except GatewayError as error:
+                    if error.status == 404:
+                        continue
+                    raise
+                try:
+                    if existing.get("md5") == md5 and existing.get("sha256") == sha256:
+                        # Metadata can outlive an externally changed file. Never
+                        # reuse an ID unless its current bytes also match.
+                        if stream.read(len(data) + 1) == data:
+                            return existing
+                finally:
+                    stream.close()
+                    lock.release()
+            file_id = str(uuid4())
+            metadata = {"id": file_id, "name": name, "originalName": original_name, "size": len(data), "md5": md5, "sha256": sha256, "type": upload.content_type or "application/octet-stream", "projectId": project_id, "createdAt": now_iso()}
+            target = self.store.directory(user_id) / "files" / file_id
+            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                with os.fdopen(descriptor, "wb") as stream:
+                    stream.write(data)
+                self.store.update(user_id, lambda current: current["files"].insert(0, metadata))
+            except BaseException:
+                target.unlink(missing_ok=True)
+                raise
+            return metadata
+
+    def _backfill_file_hashes(self, user_id, metadata, stream):
+        """Persist missing digests without rewriting a known SHA256 fingerprint."""
+        missing = [key for key in ("md5", "sha256") if not metadata.get(key)]
+        if not missing:
+            return metadata
+        md5, sha256 = hashlib.md5(usedforsecurity=False), hashlib.sha256()
+        for chunk in iter(lambda: stream.read(65536), b""):
+            md5.update(chunk)
+            sha256.update(chunk)
+        stream.seek(0)
+        hashes = {"md5": md5.hexdigest(), "sha256": sha256.hexdigest()}
+        updates = {key: hashes[key] for key in missing}
+        def change(state):
+            item = next(value for value in state["files"] if value["id"] == metadata["id"])
+            item.update(updates)
+        self.store.update(user_id, change)
+        return {**metadata, **updates}
 
     def open_file(self, user_id, file_id):
         """Open a validated file and hold its lock until the HTTP body finishes."""
@@ -219,6 +316,11 @@ class WorkbenchService:
             if not os.path.isfile(stream.name):
                 stream.close()
                 raise GatewayError("文件内容不可读取。", 404)
+            try:
+                metadata = self._backfill_file_hashes(user_id, metadata, stream)
+            except BaseException:
+                stream.close()
+                raise
             return stream, metadata, lock
         except BaseException:
             lock.release()
@@ -291,6 +393,13 @@ class WorkbenchService:
                         except FileNotFoundError:
                             continue
                     content += f"\n\n<用户提供的参考文件 name={json.dumps(metadata['name'], ensure_ascii=False)}>\n{text}\n</用户提供的参考文件>"
+            elif role == "assistant":
+                references = []
+                for source in item.get("sources") or []:
+                    if isinstance(source, dict) and isinstance(source.get("url"), str):
+                        references.append(f"{source.get('id', '')} {source.get('title', '')}: {source['url']}")
+                if references:
+                    content += "\n\n已核对来源：\n" + "\n".join(references[:20])
             history.append({"role": role, "content": content})
         return history
 
@@ -311,6 +420,25 @@ class WorkbenchService:
                 raise GatewayError("请输入消息。", 400)
             if len(message) > 100000:
                 raise GatewayError("消息过长，请缩短后重试。", 400)
+            search_mode = payload.get("searchMode", "auto")
+            if not isinstance(search_mode, str) or search_mode not in {"auto", "on", "off"}:
+                raise GatewayError("联网搜索模式无效。", 400)
+            requested_skills = payload.get("skillNames", [])
+            if not isinstance(requested_skills, list) or len(requested_skills) > 3:
+                raise GatewayError("每次最多选择 3 个 Skill。", 400)
+            selected_skills = []
+            selected_names = set()
+            for name in requested_skills:
+                if not isinstance(name, str):
+                    raise GatewayError("Skill 名称无效。", 400)
+                if name in selected_names:
+                    continue
+                try:
+                    skill = self.runtime.skills.load(name)
+                except ValueError:
+                    raise GatewayError("所选 Skill 不存在或无法加载。", 400) from None
+                selected_skills.append(skill)
+                selected_names.add(name)
             if not self.runtime.provider.key:
                 raise GatewayError("模型服务尚未配置密钥，请在服务器 .env 中设置 GITEE_AI_API_KEY。", 503)
             self._check_cancel(run)
@@ -373,7 +501,7 @@ class WorkbenchService:
             if run["event"].is_set() and created_task:
                 self.store.update(user_id, lambda current: current.__setitem__("tasks", [item for item in current["tasks"] if item["id"] != task_id]))
             self._check_cancel(run)
-            context = {"auth": auth, "run": run, "task": task, "message": message, "query": query, "attachments": attachments, "history": history, "prompt": prompt, "modelId": model_id, "agentId": agent_id, "projectId": project_id}
+            context = {"auth": auth, "run": run, "task": task, "message": message, "query": query, "attachments": attachments, "history": history, "prompt": prompt, "modelId": model_id, "agentId": agent_id, "projectId": project_id, "searchMode": search_mode, "selectedSkills": selected_skills}
             return self._stream_chat(context), lambda: self.abandon_chat(task_id, run)
         except Exception as error:
             self.abandon_chat(task_id, run)
@@ -397,6 +525,9 @@ class WorkbenchService:
         user_id = auth["user"]["id"]
         message, attachments = context["message"], context["attachments"]
         answer = ""
+        sources = []
+        skills_used = []
+        tools_used = []
         failure = ""
         persisted_input = False
         completed = False
@@ -419,21 +550,49 @@ class WorkbenchService:
             def save_input(state):
                 current = next((item for item in state["tasks"] if item["id"] == task["id"]), None)
                 if current:
-                    current["messages"].append({"role": "user", "content": message, "attachments": attachments, "at": now_iso()})
+                    current["messages"].append({"role": "user", "content": message, "attachments": attachments,
+                                                "searchMode": context["searchMode"],
+                                                "skillNames": [skill["name"] for skill in context["selectedSkills"]],
+                                                "at": now_iso()})
                     current.update({"status": "running", "error": "", "updatedAt": now_iso(), "modelId": context["modelId"], "agentId": context["agentId"], "projectId": context["projectId"]})
                     for legacy_key in ("botId", "conversationId", "botSpaceId", "configuredModelId"):
                         current.pop(legacy_key, None)
             self.store.update(user_id, save_input)
             persisted_input = True
             self._check_cancel(run)
-            graph_stream = self.runtime.stream(user_id, task["id"], context["history"], context["query"], context["prompt"], context["modelId"], run["event"], on_response)
+            graph_options = {"search_mode": context["searchMode"]}
+            if context["selectedSkills"]:
+                graph_options["selected_skills"] = context["selectedSkills"]
+            graph_stream = self.runtime.stream(user_id, task["id"], context["history"], context["query"], context["prompt"], context["modelId"], run["event"], on_response, **graph_options)
             for item in graph_stream:
                 self._check_cancel(run)
                 if item["type"] == "token":
                     answer += item["text"]
                     yield emit("token", {"text": item["text"]})
+                elif item["type"] == "skill_loaded":
+                    if item["name"] not in skills_used:
+                        skills_used.append(item["name"])
+                    yield emit("skill_loaded", {"name": item["name"]})
+                elif item["type"] == "search_status":
+                    yield emit("search_status", {key: value for key, value in item.items() if key != "type"})
+                elif item["type"] == "search_sources":
+                    existing = {source.get("url") for source in sources}
+                    for source in item.get("sources", []):
+                        if isinstance(source, dict) and source.get("url") not in existing:
+                            sources.append(source)
+                            existing.add(source.get("url"))
+                    yield emit("search_sources", {"sources": item.get("sources", [])})
+                elif item["type"] == "tool_status":
+                    name = item.get("name")
+                    status = item.get("status")
+                    if status == "complete" and isinstance(name, str) and name not in tools_used:
+                        tools_used.append(name)
+                    yield emit("tool_status", {"name": name, "status": status})
                 elif item["type"] == "complete":
                     answer = item["message"]["content"]
+                    sources = item["message"].get("sources", sources)
+                    skills_used = item["message"].get("skillsUsed", skills_used)
+                    tools_used = item["message"].get("toolsUsed", tools_used)
                     completed = True
             if not completed:
                 raise GatewayError("模型输出未能完成，请稍后重试。", 502)
@@ -467,9 +626,14 @@ class WorkbenchService:
                 if current is None:
                     return
                 if not persisted_input:
-                    current["messages"].append({"role": "user", "content": message, "attachments": attachments, "at": now_iso()})
-                if answer:
-                    current["messages"].append({"role": "assistant", "content": answer, "at": now_iso(), "partial": bool(failure)})
+                    current["messages"].append({"role": "user", "content": message, "attachments": attachments,
+                                                "searchMode": context["searchMode"],
+                                                "skillNames": [skill["name"] for skill in context["selectedSkills"]],
+                                                "at": now_iso()})
+                if answer or sources or skills_used or tools_used:
+                    current["messages"].append({"role": "assistant", "content": answer, "at": now_iso(), "partial": bool(failure),
+                                                "sources": sources, "skillsUsed": skills_used,
+                                                "toolsUsed": tools_used})
                 current["error"] = failure
                 current["status"] = "stopped" if run["event"].is_set() and failure == "已停止生成。" else ("error" if failure else "done")
                 current["updatedAt"] = now_iso()

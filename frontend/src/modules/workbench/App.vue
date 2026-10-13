@@ -1,28 +1,109 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import Icon from './components/Icon.vue';
 import Composer from './components/Composer.vue';
+import HomeLanding from './components/HomeLanding.vue';
+import CapabilityDialog from './components/CapabilityDialog.vue';
+import AgentPlatformPanel from './components/AgentPlatformPanel.vue';
+import SourcesPanel from './components/SourcesPanel.vue';
+import FinancialDataPanel from './components/FinancialDataPanel.vue';
+import ExplorePanel from '../explore/ExplorePanel.vue';
 import { useWorkbench } from './useWorkbench.js';
+import { fileLabel, fileIdentityHint } from './fileLabels.js';
 
 const {
+  platform,
   s, notices, filePicker, composer, conversation, dialog, projectName, scheduleTitle, scheduleAt,
   agents, agent, model, project, recentTasks, searchResults, visibleFiles, sortedSchedules, attachedFiles,
   uploadCount, activePreviewFile, previewExtension, generationLabel, formatDate, relativeTime, fileSize,
-  updateDraft, manualRefresh, setView, toggleSidebar, newTask, openTask, selectAgent, selectProject, selectModel,
+  updateDraft, updateSearchMode, selectSkill, removeSkill, manualRefresh, setView, toggleSidebar, newTask, openTask, selectAgent, selectProject, selectModel,
   submitAuth, logout, showModal, closeModal, submitModal, toggleSchedule, confirmDelete,
   toggleAttachment, removeAttachment, chooseFiles, uploadFiles, downloadFile, previewFile, scrollConversation,
   restoreLastPrompt, copyText, messageContent, renderAssistant, sendMessage, stopMessage, setPrompt,
-  onConversationScroll,
+  onConversationScroll, publicSearchSources, publicSkillsUsed, publicToolsUsed,
 } = useWorkbench();
+const knownFile = file => s.files.find(item => String(item.id) === String(file.id)) || file;
 
-const prompts = [
-  { title: '看看我能做什么', icon: 'code', text: '介绍一下你能帮我做什么，并列出适合现在开始的三个任务。' },
-  { title: '规划一个新任务', icon: 'grid', text: '帮我把这个想法梳理成可执行的计划，先向我确认目标、截止时间和现有资料。' },
-  { title: '构思视频脚本', icon: 'spark', text: '帮我整理一份视频创意方案。先询问产品、受众、渠道与时长，再给出脚本和分镜。' },
-];
+const isMobile = ref(false);
+const mobileNavOpen = ref(false);
+const mobileNavToggle = ref(null);
+const sidebar = ref(null);
+const searchShortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
+let mobileMedia;
+function syncMobileLayout() {
+  isMobile.value = mobileMedia.matches;
+  if (!isMobile.value) mobileNavOpen.value = false;
+}
+onMounted(() => {
+  mobileMedia = window.matchMedia('(max-width: 767px)');
+  syncMobileLayout();
+  mobileMedia.addEventListener('change', syncMobileLayout);
+});
+onUnmounted(() => mobileMedia?.removeEventListener('change', syncMobileLayout));
+async function openMobileNav() {
+  mobileNavOpen.value = true;
+  await nextTick();
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  sidebar.value?.querySelector('button')?.focus();
+}
+function closeMobileNav(restoreFocus = false) {
+  mobileNavOpen.value = false;
+  if (restoreFocus) nextTick(() => mobileNavToggle.value?.focus());
+}
+function onSidebarAction(event) {
+  if (!isMobile.value || !event.target.closest('.nav-row, .side-row, .side-heading button, .project-cta button, .user-row, .search-trigger')) return;
+  closeMobileNav();
+  nextTick(() => { if (!s.modal) mobileNavToggle.value?.focus(); });
+}
+function onSidebarKeydown(event) {
+  if (!isMobile.value || !mobileNavOpen.value) return;
+  if (event.key === 'Escape') { event.preventDefault(); closeMobileNav(true); return; }
+  if (event.key !== 'Tab') return;
+  const controls = [...sidebar.value.querySelectorAll('button:not([disabled])')].filter(item => item.getClientRects().length);
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+}
+watch(() => [s.modal, s.authenticated], () => closeMobileNav());
+function useHomePrompt(item) {
+  if (s.streaming || (item.build && s.selectedSkillNames.length)) return;
+  if (item.build) s.interactionMode = 'platform';
+  setPrompt(item.text);
+}
+function beginExplore() {
+  setView('explore');
+}
+function beginBuild() {
+  useHomePrompt({ build: true, text: '我想把一项重复工作整理成可运行的应用，请先和我确认处理目标、输入资料和输出要求，再展示流程供我确认。' });
+}
 const taskFailure = computed(() => s.streaming ? '' : s.streamError || s.currentTask?.error || '');
+const sourcePanel = ref(null);
+const capabilityDialog = ref(null);
+watch(() => s.user?.id, () => { capabilityDialog.value = null; sourcePanel.value = null; sourceReturnFocus = null; });
+function openCapability(kind, item) { capabilityDialog.value = { kind, name: item.name, description: item.description }; }
+function useSelectedSkill(name) { if (selectSkill(name)) capabilityDialog.value = null; }
+let sourceReturnFocus = null;
+
+function openSources(message, trigger, sourceUrl = '') {
+  const sources = publicSearchSources(message?.sources);
+  const skills = publicSkillsUsed(message?.skillsUsed);
+  const tools = publicToolsUsed(message?.toolsUsed);
+  if (!sources.length && !skills.length && !tools.length) return;
+  sourceReturnFocus = trigger instanceof HTMLElement ? trigger : document.activeElement;
+  sourcePanel.value = { sources, skills, tools, focusUrl: sources.some((item) => item.url === sourceUrl) ? sourceUrl : '' };
+}
+
+async function closeSources() {
+  sourcePanel.value = null;
+  await nextTick();
+  if (sourceReturnFocus?.isConnected) sourceReturnFocus.focus();
+  sourceReturnFocus = null;
+}
 
 function onRenderedMessageClick(event, message) {
+  const citation = event.target.closest('[data-action="open-source"]');
+  if (citation) { openSources(message, citation, citation.dataset.sourceUrl); return; }
   const button = event.target.closest('[data-action="copy-code"]');
   if (!button) return;
   const index = Number(button.dataset.codeIndex);
@@ -74,23 +155,27 @@ function onDialogKeydown(event) {
     </main>
   </div>
 
-  <div v-else class="app-shell" :class="{ collapsed: s.sidebarCollapsed }" :inert="Boolean(s.modal)">
-    <aside class="sidebar">
+  <div v-else class="app-shell" :class="{ collapsed: s.sidebarCollapsed, 'mobile-nav-open': mobileNavOpen, 'explore-mode': s.view === 'explore' }" :inert="Boolean(s.modal || sourcePanel || capabilityDialog)">
+    <button ref="mobileNavToggle" class="mobile-nav-toggle icon-button" type="button" aria-label="打开导航" aria-controls="workspace-sidebar" :aria-expanded="mobileNavOpen" :inert="mobileNavOpen" @click="openMobileNav"><Icon name="menu" /></button>
+    <button v-if="isMobile && mobileNavOpen" class="mobile-sidebar-backdrop" type="button" tabindex="-1" aria-label="关闭导航" @click="closeMobileNav(true)" />
+    <aside id="workspace-sidebar" ref="sidebar" class="sidebar" :inert="isMobile && !mobileNavOpen" :aria-label="isMobile ? '工作台导航' : undefined" :role="isMobile ? 'dialog' : undefined" :aria-modal="isMobile && mobileNavOpen ? true : undefined" @click="onSidebarAction" @keydown="onSidebarKeydown">
       <div class="sidebar-top">
-        <button class="icon-button" type="button" :title="s.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'" :aria-label="s.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'" :aria-expanded="!s.sidebarCollapsed" @click="toggleSidebar"><Icon name="panel" /></button>
-        <button class="icon-button search-trigger" type="button" title="搜索任务 ⌘K" aria-label="搜索任务" @click="showModal('search')"><Icon name="search" /></button>
+        <button class="icon-button" type="button" :title="isMobile ? '关闭导航' : s.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'" :aria-label="isMobile ? '关闭导航' : s.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'" :aria-expanded="isMobile ? mobileNavOpen : !s.sidebarCollapsed" @click="isMobile ? closeMobileNav(true) : toggleSidebar()"><Icon name="panel" /></button>
+        <button class="icon-button search-trigger" type="button" :title="'搜索任务 ' + searchShortcut" aria-label="搜索任务" @click="showModal('search')"><Icon name="search" /></button>
       </div>
       <div class="brand"><span class="brand-mark">F</span><span class="brand-name">Ficagent<span class="brand-sub">WEB WORKSPACE</span></span></div>
       <div class="side-scroll">
         <nav class="nav-group" aria-label="主导航">
-          <button class="nav-row" :class="{ active: s.view === 'home' && !s.currentTask }" type="button" @click="newTask"><Icon name="addCircle" /><span>新任务</span></button>
-          <button class="nav-row" :class="{ active: s.view === 'schedule' }" type="button" @click="setView('schedule')"><Icon name="calendar" /><span>日程</span></button>
-          <button class="nav-row" :class="{ active: s.view === 'extensions' }" type="button" @click="setView('extensions')"><Icon name="grid" /><span>扩展</span></button>
-          <button class="nav-row" :class="{ active: s.view === 'files' }" type="button" @click="setView('files')"><Icon name="folder" /><span>文件</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'home' && !s.currentTask }" aria-label="新任务" title="新任务" type="button" @click="newTask"><Icon name="addCircle" /><span>新任务</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'schedule' }" aria-label="日程" title="日程" type="button" @click="setView('schedule')"><Icon name="calendar" /><span>日程</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'applications' }" aria-label="应用" title="应用" type="button" @click="setView('applications')"><Icon name="grid" /><span>应用</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'extensions' }" aria-label="扩展" title="扩展" type="button" @click="setView('extensions')"><Icon name="grid" /><span>扩展</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'files' }" aria-label="文件" title="文件" type="button" @click="setView('files')"><Icon name="folder" /><span>文件</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'data' }" :aria-current="s.view === 'data' ? 'page' : undefined" aria-label="数据管理" title="数据管理" type="button" @click="setView('data')"><Icon name="grid" /><span>数据管理</span></button>
         </nav>
         <section class="side-section">
           <div class="side-heading"><span>智能体</span><button class="icon-button" type="button" title="选择智能体" aria-label="选择智能体" @click="showModal('agents')"><Icon name="addCircle" small /></button></div>
-          <button v-for="item in agents" :key="item.id" class="side-row" :class="{ active: String(item.id) === String(s.selectedAgentId) && s.view === 'home' }" type="button" :title="item.description || item.name" :aria-pressed="String(item.id) === String(s.selectedAgentId)" @click="selectAgent(item.id)"><span class="small-avatar">{{ item.glyph || item.name?.slice(0, 1) }}</span><span class="row-title">{{ item.name }}</span></button>
+          <button v-for="item in agents" :key="item.id" class="side-row" :class="{ active: String(item.id) === String(s.selectedAgentId) && s.view === 'home' }" type="button" :title="item.description || item.name" :aria-label="item.name" :aria-pressed="String(item.id) === String(s.selectedAgentId)" @click="selectAgent(item.id)"><span class="small-avatar">{{ item.glyph || item.name?.slice(0, 1) }}</span><span class="row-title">{{ item.name }}</span></button>
         </section>
         <section class="side-section">
           <div class="side-heading"><span>项目</span><button class="icon-button" type="button" title="新建项目" aria-label="新建项目" @click="showModal('project')"><Icon name="addCircle" small /></button></div>
@@ -105,30 +190,31 @@ function onDialogKeydown(event) {
         <section v-if="recentTasks.length" class="side-section tasks-group">
           <div class="side-heading"><span>最近任务</span><button class="icon-button" type="button" title="搜索任务" aria-label="搜索任务" @click="showModal('search')"><Icon name="search" small /></button></div>
           <div v-for="item in recentTasks" :key="item.id" class="side-row" :class="{ active: s.view === 'home' && String(item.id) === String(s.currentTaskId) }">
-            <button class="side-row-button" type="button" :aria-current="s.view === 'home' && String(item.id) === String(s.currentTaskId) ? 'page' : undefined" :aria-busy="String(item.id) === String(s.openingTaskId)" @click="openTask(item.id)"><span class="task-indicator"><Icon name="history" small /></span><span class="row-title">{{ item.title || '未命名任务' }}</span><span class="task-time">{{ relativeTime(item.updatedAt) }}</span></button>
+            <button class="side-row-button" type="button" :title="item.title || '未命名任务'" :aria-label="item.title || '未命名任务'" :aria-current="s.view === 'home' && String(item.id) === String(s.currentTaskId) ? 'page' : undefined" :aria-busy="String(item.id) === String(s.openingTaskId)" @click="openTask(item.id)"><span class="task-indicator"><Icon name="history" small /></span><span class="row-title">{{ item.title || '未命名任务' }}</span><span class="task-time">{{ relativeTime(item.updatedAt) }}</span></button>
             <button class="icon-button row-more" type="button" title="删除任务" :aria-label="'删除' + (item.title || '任务')" @click="confirmDelete('task', item.id)"><Icon name="more" small /></button>
           </div>
         </section>
       </div>
-      <div class="sidebar-bottom"><button class="user-row" type="button" title="账号与设置" :aria-current="s.view === 'settings' ? 'page' : undefined" @click="setView('settings')"><span class="user-avatar">{{ String(s.user?.name || s.user?.email || 'F').slice(0, 1).toUpperCase() }}</span><span class="user-name">{{ s.user?.name || s.user?.email || '本地用户' }}</span><Icon name="gear" small /></button></div>
+      <div class="sidebar-bottom"><button class="user-row" type="button" title="账号与设置" aria-label="账号与设置" :aria-current="s.view === 'settings' ? 'page' : undefined" @click="setView('settings')"><span class="user-avatar">{{ String(s.user?.name || s.user?.email || 'F').slice(0, 1).toUpperCase() }}</span><span class="user-name">{{ s.user?.name || s.user?.email || '本地用户' }}</span><Icon name="gear" small /></button></div>
     </aside>
 
-    <main class="main-panel">
+    <main class="main-panel" :inert="isMobile && mobileNavOpen">
       <template v-if="s.view === 'home'">
+        <div class="home-utility-row" :class="{ 'conversation-utility-row': s.currentTask }">
+        <div class="agent-mode-toggle"><label for="interaction-mode">对话方式</label><select id="interaction-mode" v-model="s.interactionMode" :disabled="s.streaming || s.selectedSkillNames.length > 0"><option value="platform">主助手 · 对话与应用</option><option value="chat">普通对话 · 当前文字角色</option></select><small>{{ s.interactionMode === 'platform' ? '描述需求，选择已有应用或设计新流程。' : '使用当前角色进行文字交流。' }}</small></div>
+          <button v-if="!s.currentTask" class="home-search" type="button" aria-label="搜索任务" @click="showModal('search')"><Icon name="search" /><span>搜索任务…</span><kbd>{{ searchShortcut }}</kbd></button>
+        </div>
         <div v-if="!s.currentTask" class="page home-scroll">
-          <div class="welcome">
-            <h1>嗨，我是 <span class="headline-avatar">{{ agent?.glyph || 'F' }}</span> {{ agent?.name }}。<br class="mobile-break" />今天想做什么？</h1>
-            <Composer ref="composer" :draft="s.draft" :agent="agent" :model="model" :project="project" :attachments="attachedFiles" :streaming="s.streaming" :uploading="uploadCount" :model-unavailable="s.taskModelUnavailable" :has-models="s.models.length > 0" @update:draft="updateDraft" @send="sendMessage" @attach="showModal('attachments')" @project="showModal('projects')" @model="showModal('models')" @agent="showModal('agents')" @remove-attachment="removeAttachment" />
-            <div class="prompt-grid"><button v-for="item in prompts" :key="item.title" class="prompt-card" type="button" @click="setPrompt(item.text)"><Icon :name="item.icon" /><span>{{ item.title }}</span></button></div>
+          <HomeLanding :busy="s.streaming" :has-skills="s.selectedSkillNames.length > 0" @explore="beginExplore" @build="beginBuild" @applications="setView('applications')" @prompt="useHomePrompt">
+            <Composer variant="home" ref="composer" :draft="s.draft" :agent="agent" :model="model" :project="project" :attachments="attachedFiles" :streaming="s.streaming" :uploading="uploadCount" :model-unavailable="s.taskModelUnavailable" :has-models="s.models.length > 0" :skill-names="s.selectedSkillNames" @remove-skill="removeSkill" :search-mode="s.searchMode" :search-available="s.runtime?.searchAvailable !== false" @update:draft="updateDraft" @update:search-mode="updateSearchMode" @send="sendMessage" @attach="showModal('attachments')" @project="showModal('projects')" @model="showModal('models')" @agent="showModal('agents')" @remove-attachment="removeAttachment" />
             <div v-if="s.streamError" class="send-error" role="alert"><Icon name="info" small /><span>发送未完成：{{ s.streamError }} 输入内容已保留，请检查后再发送。</span></div>
-            <div v-if="s.runtime?.configured === false" class="config-hint"><Icon name="info" small />Gitee AI 尚未在网站后端配置。<button type="button" @click="setView('settings')">查看配置说明</button>，重启网站后即可开始对话。</div>
+            <div v-if="s.runtime?.configured === false" class="config-hint"><Icon name="info" small />当前模型尚未配置。<button type="button" @click="setView('settings')">查看配置说明</button>。</div>
             <div v-else-if="!s.models.length" class="config-hint"><Icon name="info" small />当前没有可用模型。<button type="button" @click="setView('settings')">查看运行状态</button>。</div>
-          </div>
-          <div class="home-bottom-space" />
+          </HomeLanding>
         </div>
         <div v-else class="page conversation-page">
           <div ref="conversation" class="conversation" id="conversation-scroll" @scroll="onConversationScroll">
-            <div class="conversation-head"><span class="small-avatar">{{ agent?.glyph || 'F' }}</span><h2>{{ s.currentTask.title || '新任务' }}</h2><button class="icon-button" type="button" title="新任务" aria-label="新任务" @click="newTask"><Icon name="addCircle" small /></button></div>
+            <div class="conversation-head"><span class="small-avatar">{{ agent?.glyph || 'F' }}</span><h1>{{ s.currentTask.title || '新任务' }}</h1><button class="icon-button" type="button" title="新任务" aria-label="新任务" @click="newTask"><Icon name="addCircle" small /></button></div>
             <div v-for="(message, index) in (s.currentTask.messages || [])" :key="index" class="message" :class="message.role === 'user' ? 'user' : 'assistant'">
               <div class="message-avatar">{{ message.role === 'user' ? String(s.user?.name || s.user?.email || '我').slice(0, 1) : agent?.glyph || 'F' }}</div>
               <div class="message-body">
@@ -136,19 +222,28 @@ function onDialogKeydown(event) {
                 <div v-if="message.role === 'user'" class="message-content">{{ messageContent(message) }}</div>
                 <div v-else-if="messageContent(message)" class="message-content" v-html="renderAssistant(message, index)" @click="onRenderedMessageClick($event, message)" />
                 <div v-else-if="message.streaming" class="message-content"><span class="message-typing"><i /><i /><i /></span></div>
-                <div v-if="message.attachments?.length" class="message-attachments" aria-label="引用文件"><span v-for="file in message.attachments" :key="file.id" class="message-attachment"><Icon name="file" small /><span>{{ file.name || '文件' }}</span></span></div>
+                <div v-if="message.role === 'assistant' && (publicSearchSources(message.sources).length || publicSkillsUsed(message.skillsUsed).length || publicToolsUsed(message.toolsUsed).length)" class="message-source-actions"><button type="button" class="message-source-trigger" @click="openSources(message, $event.currentTarget)"><Icon name="search" small />{{ publicSearchSources(message.sources).length ? '来源 · ' + publicSearchSources(message.sources).length : '本次详情' }}</button></div>
+                <div v-if="message.attachments?.length" class="message-attachments" aria-label="引用文件"><span v-for="file in message.attachments" :key="file.id" class="message-attachment" :title="fileIdentityHint(knownFile(file))"><Icon name="file" small /><span>{{ fileLabel(knownFile(file)) }}</span></span></div>
                 <div v-if="messageContent(message)" class="message-actions"><button type="button" @click="copyText(messageContent(message))"><Icon name="copy" small /> 复制消息</button></div>
               </div>
             </div>
             <div v-if="taskFailure" class="send-error" role="alert"><Icon name="info" small /><span>上次回复未完成：{{ taskFailure }} 如需再次提问，可以先检查内容；再次发送会新增一条消息。</span><button type="button" @click="restoreLastPrompt">放回输入框</button></div>
+            <AgentPlatformPanel :platform="platform" :files="s.files" @upload="payload => chooseFiles('agent', payload)" @open-task="openTask" />
           </div>
           <div class="conversation-jump-wrap"><button v-if="s.showJump" class="conversation-jump" type="button" @click="scrollConversation">↓ 回到底部</button></div>
           <div class="chat-footer">
             <div v-if="s.streaming" class="stop-bar" role="status"><span class="run-orb" aria-hidden="true" /><span class="generation-label">{{ generationLabel }}</span><button type="button" @click="stopMessage"><Icon name="stop" small /> 停止生成</button></div>
-            <Composer ref="composer" :draft="s.draft" :agent="agent" :model="model" :project="project" :attachments="attachedFiles" :streaming="s.streaming" :uploading="uploadCount" :model-unavailable="s.taskModelUnavailable" :has-models="s.models.length > 0" @update:draft="updateDraft" @send="sendMessage" @attach="showModal('attachments')" @project="showModal('projects')" @model="showModal('models')" @agent="showModal('agents')" @remove-attachment="removeAttachment" />
+            <Composer ref="composer" :draft="s.draft" :agent="agent" :model="model" :project="project" :attachments="attachedFiles" :streaming="s.streaming" :uploading="uploadCount" :model-unavailable="s.taskModelUnavailable" :has-models="s.models.length > 0" :skill-names="s.selectedSkillNames" @remove-skill="removeSkill" :search-mode="s.searchMode" :search-available="s.runtime?.searchAvailable !== false" @update:draft="updateDraft" @update:search-mode="updateSearchMode" @send="sendMessage" @attach="showModal('attachments')" @project="showModal('projects')" @model="showModal('models')" @agent="showModal('agents')" @remove-attachment="removeAttachment" />
           </div>
         </div>
       </template>
+
+      <ExplorePanel v-else-if="s.view === 'explore'" :key="s.user?.id" :owner-id="s.user?.id" @back="setView('home')" />
+
+      <section v-else-if="s.view === 'applications'" class="page">
+        <div class="page-header"><div><h1 class="page-title">应用</h1><p class="page-subtitle">复用已经保存的流程，用新的输入完成任务。</p></div><div class="toolbar-actions"><button class="secondary-button" :disabled="platform.p.loading" @click="platform.refresh">同步状态</button><button class="primary-button" :disabled="s.streaming" @click="newTask(); s.interactionMode = 'platform'">对话创建应用</button></div></div>
+        <div class="page-body"><AgentPlatformPanel :platform="platform" :files="s.files" catalog @upload="payload => chooseFiles('agent', payload)" @open-task="openTask" /></div>
+      </section>
 
       <section v-else-if="s.view === 'schedule'" class="page">
         <div class="page-header"><div><h1 class="page-title">日程</h1><p class="page-subtitle">把要做的事放在这里。工作台运行时会提醒到期日程。</p></div><div class="toolbar-actions"><button class="primary-button" type="button" @click="showModal('schedule')"><Icon name="add" small /> 新建日程</button></div></div>
@@ -170,11 +265,11 @@ function onDialogKeydown(event) {
           <div v-if="visibleFiles.length" class="item-list">
             <div v-for="item in visibleFiles" :key="item.id" class="item-card">
               <div class="item-card-icon"><Icon name="file" /></div>
-              <div class="item-card-main"><div class="item-card-title">{{ item.name }}</div><div class="item-card-detail">{{ fileSize(item.size) }}{{ item.projectId ? ' · ' + (s.projects.find((candidate) => String(candidate.id) === String(item.projectId))?.name || '项目文件') : '' }}</div></div>
+              <div class="item-card-main"><div class="item-card-title" :title="fileIdentityHint(item)">{{ fileLabel(item) }}</div><div class="item-card-detail">{{ fileSize(item.size) }}{{ item.projectId ? ' · ' + (s.projects.find((candidate) => String(candidate.id) === String(item.projectId))?.name || '项目文件') : '' }}</div></div>
               <div class="item-card-actions">
-                <button class="icon-button" type="button" title="预览" :aria-label="'预览' + item.name" @click="previewFile(item.id)"><Icon name="eye" small /></button>
-                <button class="icon-button" type="button" title="下载" :aria-label="'下载' + item.name" @click="downloadFile(item.id)"><Icon name="download" small /></button>
-                <button class="icon-button" type="button" title="删除" :aria-label="'删除' + item.name" @click="confirmDelete('file', item.id)"><Icon name="trash" small /></button>
+                <button class="icon-button" type="button" title="预览" :aria-label="'预览' + fileLabel(item)" @click="previewFile(item.id)"><Icon name="eye" small /></button>
+                <button class="icon-button" type="button" title="下载" :aria-label="'下载' + fileLabel(item)" @click="downloadFile(item.id)"><Icon name="download" small /></button>
+                <button class="icon-button" type="button" title="删除" :aria-label="'删除' + fileLabel(item)" @click="confirmDelete('file', item.id)"><Icon name="trash" small /></button>
               </div>
             </div>
           </div>
@@ -182,12 +277,35 @@ function onDialogKeydown(event) {
         </div>
       </section>
 
+      <FinancialDataPanel v-else-if="s.view === 'data'" :key="s.user?.id" />
+
       <section v-else-if="s.view === 'extensions'" class="page">
-        <div class="page-header"><div><h1 class="page-title">扩展</h1><p class="page-subtitle">查看网站当前的 AI 运行方式和已启用能力。</p></div></div>
-        <div class="page-body page-body-narrow"><div class="two-column">
-          <div class="surface-card"><div class="item-card-icon"><Icon name="grid" /></div><h2>LangGraph 运行时</h2><p>网站后端使用 LangGraph 编排文字对话。任务、项目、文件与日程由本站保存；当前未接入电脑操作或视频生成工具。</p><span class="tag">{{ s.runtimeLoading ? '读取状态中' : s.runtimeError ? '状态读取失败' : '本地工作台' }}</span></div>
-          <div class="surface-card"><div class="item-card-icon"><Icon name="spark" /></div><h2>Gitee AI 模型</h2><p>服务提供方：{{ s.runtime?.provider || 'Gitee AI' }} · 模型：{{ s.runtime?.model || s.models[0]?.name || 'GLM-5.3' }}</p><p v-if="s.runtimeError">{{ s.runtimeError }}</p><p v-else-if="s.runtimeLoading">正在读取服务端配置状态…</p><p v-else>{{ s.runtime?.configured ? '服务端已填写模型配置；此状态不代表已验证上游连通。' : '服务端尚未填写模型配置，文字对话暂不可用。' }}</p><p v-if="s.runtime?.message">{{ s.runtime.message }}</p><button class="secondary-button" type="button" @click="setView('settings')">查看模型设置</button></div>
-        </div></div>
+        <div class="page-header"><div><h1 class="page-title">扩展</h1><p class="page-subtitle">直接调用工具，或选择技能用于下一条对话。</p></div><button class="secondary-button" :disabled="s.manualRefreshing" @click="manualRefresh">刷新目录</button></div>
+        <div class="page-body page-body-narrow">
+          <p v-if="s.runtimeLoading" role="status">正在读取工具与技能…</p>
+          <p v-if="s.runtimeError" class="send-error" role="alert">{{ s.runtimeError }}</p>
+          <div class="section-label">独立工具 · {{ s.runtime?.tools?.length || 0 }}</div>
+          <p class="extension-intro">填写参数后直接执行，无需加载 Skill 或让模型选择。</p>
+          <div class="extension-grid">
+            <article v-for="item in s.runtime?.tools || []" :key="item.name" class="surface-card extension-card" :data-tool-name="item.name">
+              <div class="extension-card-heading"><h2>{{ item.name }}</h2><span class="tag">{{ item.available ? '可用' : '未配置' }}</span></div>
+              <p>{{ item.description }}</p>
+              <button class="secondary-button" type="button" :disabled="!item.available" :aria-label="'调用工具 ' + item.name" @click="openCapability('tool', item)">调用</button>
+              <small v-if="!item.available">请在设置中检查服务端配置。</small>
+            </article>
+          </div>
+          <p v-if="!s.runtimeLoading && !s.runtime?.tools?.length">暂无已注册工具。</p>
+          <div class="section-label">Skill · {{ s.runtime?.skills?.length || 0 }}</div>
+          <p class="extension-intro">Skill 提供任务规则。选择后输入问题，网站会在这一轮对话中加载它。</p>
+          <div class="extension-grid">
+            <article v-for="item in s.runtime?.skills || []" :key="item.name" class="surface-card extension-card" :data-skill-name="item.name">
+              <h2>{{ item.name }}</h2><p>{{ item.description }}</p>
+              <div class="extension-card-actions"><button class="secondary-button" type="button" :aria-label="'查看技能 ' + item.name" @click="openCapability('skill', item)">查看说明</button><button class="primary-button" type="button" :disabled="s.streaming" :aria-label="'使用技能 ' + item.name" @click="useSelectedSkill(item.name)">用于对话</button></div>
+            </article>
+          </div>
+          <p v-if="!s.runtimeLoading && !s.runtime?.skills?.length">暂无可用技能，独立工具仍可使用。</p>
+          <p v-if="s.runtime?.skillWarnings?.length" class="config-hint">部分技能未能加载，请检查服务端技能目录。</p>
+        </div>
       </section>
 
       <section v-else-if="s.view === 'settings'" class="page">
@@ -195,6 +313,9 @@ function onDialogKeydown(event) {
         <div class="page-body page-body-narrow">
           <div class="section-label">账号</div><div class="surface-card"><div class="setting-row"><span class="user-avatar">{{ String(s.user?.name || s.user?.email || 'F').slice(0, 1) }}</span><div class="grow"><strong>{{ s.user?.name || '本地用户' }}</strong><small>{{ s.user?.email || '本地账号' }}</small></div><button class="subtle-button danger-button" type="button" @click="logout"><Icon name="signout" small /> 退出登录</button></div></div>
           <div class="section-label">模型</div><div class="surface-card"><div class="setting-row"><div class="grow"><strong>{{ s.runtime?.model || s.models[0]?.name || 'GLM-5.3' }}</strong><small>{{ s.runtimeError || (s.runtimeLoading ? '正在读取服务端配置状态…' : s.runtime?.configured ? 'Gitee AI 配置已填写，尚未验证上游连接。' : '尚未配置 Gitee AI 模型。') }}</small></div><button class="secondary-button" type="button" @click="showModal('models')">选择模型</button></div><div class="setting-row"><div class="grow"><strong>服务端配置</strong><small>如需启用对话，请在网站根目录的 .env 中设置 GITEE_AI_API_KEY，再重启 python main.py。密钥仅由后端读取。</small></div></div><div v-for="item in s.models" :key="item.id" class="setting-row"><div class="grow"><strong>{{ item.name }}</strong></div><span v-if="String(item.id) === String(s.selectedModelId)" class="tag">当前模型</span><button v-else class="subtle-button" type="button" @click="selectModel(item.id)">选择</button></div></div>
+          <div class="section-label">网页搜索</div><div class="surface-card"><div class="setting-row"><div class="grow"><strong>搜索工具</strong><small>{{ s.runtimeLoading ? '正在读取服务端状态…' : s.runtime?.searchAvailable ? '可用；可在输入框选择自动、始终或关闭网页搜索。' : '当前不可用，请检查服务端配置。' }}</small><small>关闭网页搜索不会关闭金融查询等其他独立工具。</small></div><span class="tag">{{ s.runtime?.searchAvailable ? '可用' : '不可用' }}</span></div></div>
+          <div class="section-label">已注册工具</div><div class="surface-card"><div v-for="item in s.runtime?.tools || []" :key="item.name" class="setting-row"><div class="grow"><strong>{{ item.name }}</strong><small>{{ item.description || '独立工具' }}</small><small v-if="item.capabilities.length">能力：{{ item.capabilities.join('、') }}</small></div><span class="tag">{{ item.available ? '可用' : '不可用' }}</span><button class="secondary-button" type="button" :disabled="!item.available" :aria-label="'调用工具 ' + item.name" @click="openCapability('tool', item)">调用</button></div><div v-if="!s.runtime?.tools?.length" class="setting-row"><div class="grow"><strong>暂无已注册工具</strong><small>在后端工具注册入口添加工具后会显示在这里。</small></div></div></div>
+          <div class="section-label">技能</div><div class="surface-card"><div class="setting-row"><div class="grow"><strong>技能目录</strong><small>由后端技能目录中的 SKILL.md 文件提供使用说明；技能和工具分别加载。</small></div></div><div v-for="item in s.runtime?.skills || []" :key="item.name" class="setting-row"><div class="grow"><strong>{{ item.name }}</strong><small>{{ item.description || '技能指令' }}</small></div><button class="secondary-button" type="button" @click="openCapability('skill', item)">查看说明</button><button class="secondary-button" type="button" :disabled="s.streaming" @click="useSelectedSkill(item.name)">用于对话</button></div><div v-if="!s.runtime?.skills?.length" class="setting-row"><div class="grow"><strong>暂无可用技能</strong><small>独立工具仍可以正常使用。</small></div></div><div v-if="s.runtime?.skillWarnings?.length" class="setting-row"><div class="grow"><strong>部分技能未能加载</strong><small>请查看服务端日志中的技能检查结果。</small></div></div></div>
           <div class="section-label">智能体</div><div class="surface-card"><div class="setting-row"><div class="grow"><strong>内置文字助手</strong><small>可选择通用、编程和视频脚本助手；视频导演只提供策划文字，不会生成视频。</small></div><button class="secondary-button" type="button" @click="showModal('agents')">选择智能体</button></div><div v-for="item in agents" :key="item.id" class="setting-row"><span class="small-avatar">{{ item.glyph || item.name?.slice(0, 1) }}</span><div class="grow"><strong>{{ item.name }}</strong><small>{{ item.description || '' }}</small></div><span v-if="String(item.id) === String(s.selectedAgentId)" class="tag">当前智能体</span><button v-else class="subtle-button" type="button" @click="selectAgent(item.id)">选择</button></div></div>
         </div>
       </section>
@@ -203,6 +324,9 @@ function onDialogKeydown(event) {
       <div v-if="s.openingTaskId || s.openTaskError" class="task-open-status" :class="{ failed: Boolean(s.openTaskError) }" role="status" aria-live="polite"><span v-if="s.openingTaskId" class="task-open-spinner" aria-hidden="true" /><span class="task-open-message">{{ s.openTaskError ? '打开任务失败：' + s.openTaskError.message : '正在打开任务…' }}</span><button v-if="s.openTaskError" type="button" @click="openTask(s.openTaskError.id)">重试</button><button v-if="s.openTaskError" type="button" aria-label="关闭提示" @click="s.openTaskError = null">×</button></div>
     </main>
   </div>
+
+  <CapabilityDialog v-if="capabilityDialog && s.authenticated" :target="capabilityDialog" @close="capabilityDialog = null" @use-skill="useSelectedSkill" />
+  <SourcesPanel v-if="sourcePanel" :sources="sourcePanel.sources" :skills="sourcePanel.skills" :tools="sourcePanel.tools" :focus-url="sourcePanel.focusUrl" @close="closeSources" />
 
   <input ref="filePicker" id="file-picker" type="file" hidden multiple @change="uploadFiles" />
 
@@ -235,7 +359,7 @@ function onDialogKeydown(event) {
           <div class="modal-actions"><button class="secondary-button" type="button" @click="showModal('project')">创建项目</button></div>
         </template>
         <template v-else-if="s.modal.kind === 'attachments'">
-          <div class="modal-body"><button class="secondary-button attachment-upload" type="button" @click="chooseFiles('composer')"><Icon name="upload" small /> 上传新文件</button><div class="section-label">已有文件</div><div v-if="s.files.length" class="modal-list"><button v-for="item in s.files" :key="item.id" class="modal-option" :class="{ selected: s.attachedFileIds.some((id) => String(id) === String(item.id)) }" type="button" @click="toggleAttachment(item.id)"><Icon name="file" small /><span class="grow">{{ item.name }}<small>{{ fileSize(item.size) }}</small></span><Icon v-if="s.attachedFileIds.some((id) => String(id) === String(item.id))" name="check" small /></button></div><p v-else>还没有上传文件。</p></div>
+          <div class="modal-body"><button class="secondary-button attachment-upload" type="button" @click="chooseFiles('composer')"><Icon name="upload" small /> 上传新文件</button><div class="section-label">已有文件</div><div v-if="s.files.length" class="modal-list"><button v-for="item in s.files" :key="item.id" class="modal-option" :title="fileIdentityHint(item)" :class="{ selected: s.attachedFileIds.some((id) => String(id) === String(item.id)) }" type="button" @click="toggleAttachment(item.id)"><Icon name="file" small /><span class="grow">{{ fileLabel(item) }}<small>{{ fileSize(item.size) }}</small></span><Icon v-if="s.attachedFileIds.some((id) => String(id) === String(item.id))" name="check" small /></button></div><p v-else>还没有上传文件。</p></div>
           <div class="modal-actions"><button class="primary-button" type="button" @click="closeModal()">完成</button></div>
         </template>
         <template v-else-if="s.modal.kind === 'search'">

@@ -23,7 +23,7 @@ class StateStoreTests(unittest.TestCase):
             self.assertEqual(state["tasks"][0]["status"], "stopped")
             self.assertNotIn("botId", state["tasks"][0])
             self.assertNotIn("conversationId", state["tasks"][0])
-            self.assertEqual(json.loads((directory / "state.json").read_text())["tasks"][0]["status"], "stopped")
+            self.assertEqual(json.loads((directory / "state.json").read_text(encoding="utf-8"))["tasks"][0]["status"], "stopped")
             self.assertEqual(state["bindings"], {})
             self.assertTrue((directory / "files").is_dir())
             state["tasks"].clear()

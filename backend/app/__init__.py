@@ -9,6 +9,11 @@ from .config import Config
 from .modules.workbench.errors import GatewayError
 from .modules.workbench.routes import workbench
 from .modules.workbench.service import WorkbenchService
+from .modules.financial_data.routes import financial_data
+from .modules.news.routes import news
+from .modules.news.service import NewsService
+from .modules.explore.routes import explore
+from .modules.explore.service import ExploreService
 
 
 def create_app(config=None):
@@ -20,6 +25,20 @@ def create_app(config=None):
     service = WorkbenchService(app.config)
     app.extensions["workbench_service"] = service
     app.register_blueprint(workbench)
+    app.register_blueprint(financial_data)
+    app.extensions["news_service"] = NewsService(app.config)
+    app.register_blueprint(news)
+    app.extensions["explore_service"] = ExploreService(service, app.extensions["news_service"], app.config)
+    service.explore = app.extensions["explore_service"]
+    app.register_blueprint(explore)
+    from .modules.agent_platform.service import AgentPlatform
+    from .modules.agent_platform.routes import agents
+    platform = AgentPlatform(service, app.config)
+    from .modules.agent_platform.presets import register_builtin_agents
+    register_builtin_agents(platform)
+    service.platform = platform
+    app.extensions["agent_platform"] = platform
+    app.register_blueprint(agents)
 
     @app.before_request
     def protect_local_boundary():

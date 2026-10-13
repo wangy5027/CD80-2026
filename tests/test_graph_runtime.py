@@ -1,6 +1,7 @@
 """Real LangGraph + HTTP model-stream tests; never call the configured provider."""
 
 import json
+import os
 import stat
 import tempfile
 import threading
@@ -175,9 +176,10 @@ class GraphRuntimeTests(unittest.TestCase):
             item.chmod(0o644)
 
         runtime = GraphRuntime(self.config)
-        self.assertEqual(stat.S_IMODE(data_dir.stat().st_mode), 0o700)
-        for item in [database, *sidecars]:
-            self.assertEqual(stat.S_IMODE(item.stat().st_mode), 0o600, str(item))
+        if os.name != "nt":  # Windows chmod does not express POSIX account permissions.
+            self.assertEqual(stat.S_IMODE(data_dir.stat().st_mode), 0o700)
+            for item in [database, *sidecars]:
+                self.assertEqual(stat.S_IMODE(item.stat().st_mode), 0o600, str(item))
 
         # The placeholders have served their migration check; SQLite creates real WAL files.
         for item in sidecars:
@@ -189,7 +191,7 @@ class GraphRuntimeTests(unittest.TestCase):
         self.assertTrue(sidecars[0].exists(), "WAL sidecar was not created during checkpoint write")
         self.assertTrue(sidecars[1].exists(), "SHM sidecar was not created during checkpoint write")
         for item in sidecars:
-            if item.exists():
+            if item.exists() and os.name != "nt":
                 self.assertEqual(stat.S_IMODE(item.stat().st_mode), 0o600, str(item))
         runtime.close()
 

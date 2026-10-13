@@ -4,3 +4,6 @@ waitress==3.0.2
 python-dotenv==1.2.1
 langgraph==1.2.14
 langgraph-checkpoint-sqlite==3.1.1
+wasmtime==49.0.0
+PyYAML==6.0.3
+akshare==1.19.1

@@ -2,11 +2,14 @@
 
 import sqlite3
 import stat
+import os
 import sys
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -27,7 +30,8 @@ class LocalAuthTests(unittest.TestCase):
         auth = LocalAuth(self.root)
         alice, token = auth.register("Alice@Example.Invalid", "test-only-123", "Alice")
         self.assertEqual(alice["name"], "Alice")
-        self.assertEqual(stat.S_IMODE(auth.database.stat().st_mode), 0o600)
+        if os.name != "nt":  # Windows chmod cannot enforce POSIX owner-only modes.
+            self.assertEqual(stat.S_IMODE(auth.database.stat().st_mode), 0o600)
         cookie = auth.cookie(token)
         self.assertIn("HttpOnly", cookie)
         self.assertIn("SameSite=Lax", cookie)
@@ -42,7 +46,7 @@ class LocalAuthTests(unittest.TestCase):
             auth.authenticate(cookie)
         self.assertEqual(error.exception.status, 401)
         _, second_token = auth.login("alice@example.invalid", "test-only-123")
-        with sqlite3.connect(auth.database) as connection:
+        with closing(sqlite3.connect(auth.database)) as connection, connection:
             connection.execute("UPDATE sessions SET expires_at = 0")
         with self.assertRaises(GatewayError) as error:
             auth.authenticate(auth.cookie(second_token))
@@ -62,7 +66,7 @@ class LocalAuthTests(unittest.TestCase):
             outcomes = list(workers.map(lambda _item: attempt(), range(2)))
         self.assertEqual(sum(isinstance(item, dict) for item in outcomes), 1)
         self.assertEqual(sum(isinstance(item, GatewayError) and item.status == 409 for item in outcomes), 1)
-        with sqlite3.connect(auth.database) as connection:
+        with closing(sqlite3.connect(auth.database)) as connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM users").fetchone()[0], 1)
         with self.assertRaises(GatewayError) as error:
             auth.login("missing@example.invalid", "test-only-123")
@@ -105,7 +109,7 @@ class LocalAuthTests(unittest.TestCase):
             self.assertTrue(fresh_legacy.exists())
             bob, _ = enabled.register("bob@example.invalid", "test-only-123", "Bob")
             self.assertFalse((fresh_root / "users" / bob["id"]).exists())
-            with sqlite3.connect(enabled.database) as connection:
+            with closing(sqlite3.connect(enabled.database)) as connection:
                 claims = connection.execute("SELECT source_id, user_id FROM legacy_claims").fetchall()
             self.assertEqual(claims, [("123456789", alice["id"])])
 
@@ -113,12 +117,18 @@ class LocalAuthTests(unittest.TestCase):
         legacy = self._fake_legacy_state()
         outside = Path(self.temporary.name) / "outside.txt"
         outside.write_text("test")
-        (legacy / "outside-link").symlink_to(outside)
+        link = legacy / "outside-link"
+        if os.name == "nt":
+            link.write_text("fixture for a detected symlink", encoding="utf-8")
+        else:
+            link.symlink_to(outside)
         auth = LocalAuth(self.root, import_legacy=True)
-        with self.assertRaises(GatewayError) as error:
+        link_identity = os.path.normcase(os.path.realpath(link))
+        actual_is_symlink = Path.is_symlink
+        with patch.object(Path, "is_symlink", lambda path: os.path.normcase(os.path.realpath(path)) == link_identity or actual_is_symlink(path)), self.assertRaises(GatewayError) as error:
             auth.register("alice@example.invalid", "test-only-123", "Alice")
         self.assertEqual(error.exception.status, 409)
-        with sqlite3.connect(auth.database) as connection:
+        with closing(sqlite3.connect(auth.database)) as connection:
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM users").fetchone()[0], 0)
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM legacy_claims").fetchone()[0], 0)
 
@@ -133,7 +143,7 @@ class LocalAuthTests(unittest.TestCase):
             users = list(workers.map(attempt, range(2)))
         imported = [user for user in users if (self.root / "users" / user["id"] / "state.json").exists()]
         self.assertEqual(len(imported), 1)
-        with sqlite3.connect(auth.database) as connection:
+        with closing(sqlite3.connect(auth.database)) as connection:
             claims = connection.execute("SELECT source_id, user_id FROM legacy_claims").fetchall()
         self.assertEqual(claims, [("123456789", imported[0]["id"])])
 

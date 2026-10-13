@@ -1,7 +1,103 @@
+# 本仓库提交应用源码、测试、依赖清单和文档；完整本地备份放在仓库外。
+# 保留 frontend/dist/：当前 Flask 启动流程直接使用这些已构建的静态文件。
+# 不全局忽略 CSV、JSON、图片或 Markdown，以免误排测试夹具与源码资源。
+
+# 本机凭据与环境配置；只提交不含真实密钥的示例。
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+secrets.json
+secrets.yaml
+secrets.yml
+
+# Python / JavaScript 依赖：按 requirements 和 package-lock 重建。
 .venv/
+.venv-*/
+venv/
+env/
+node_modules/
 __pycache__/
 *.py[cod]
-.env
-data/
-frontend/node_modules/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.tox/
+.nox/
+.cache/
+.vite/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+*.tsbuildinfo
+
+# 用户账号、会话、附件、金融数据库、WASI 运行时和测试产物。
+/data/
+/cd80-data-api/data/
+/datasets/
+/raw_data/
+cd80_*.csv
+Dataset Overview.xlsx
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.sqlite.building
+*.sqlite3.building
+*.db
+*.db-*
+*.db.building
+
+# 日志、进程文件、浏览器验收产物与本机审计材料。
+logs/
+*.log
+*.log.*
+*.pid
+*.pid.lock
+playwright-report/
+test-results/
+/docs/sqlite-sync-qa/
+/docs/project-relocation/
+/docs/news-live-check.json
+/cd80-data-api/docs/data_catalog.json
+/tests/manual_inputs/
+/tests/平台功能描述.txt
+
+# 本地备份和临时输出；不要把完整备份压缩包提交到源码仓库。
+/backup/
+/backups/
+/项目备份/
+/outputs/
+/artifacts/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.bak
+*.backup
+*.tmp
+*.swp
+*.swo
+*~
+
+# 系统、编辑器和本机开发助手配置；产品运行时 skills/ 必须保留。
 .DS_Store
+._*
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+.agents/
+.codex/

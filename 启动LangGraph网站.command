@@ -1,4 +1,4 @@
 #!/bin/zsh
 set -e
 cd -- "${0:A:h}"
-exec .venv/bin/python main.py --port 8894
+exec cd80-data-api/.venv/bin/python cd80-data-api/scripts/start_all.py
