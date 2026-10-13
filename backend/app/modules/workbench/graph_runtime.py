@@ -101,12 +101,32 @@ class AbortableResponse:
             if self._aborted:
                 return
             self._aborted = True
+        raw = getattr(self.response, "raw", None)
         try:
+            # urllib3 retains the socket shutdown callback before http.client
+            # transfers ownership; its public method also handles wrapped sockets.
+            raw.shutdown()
+        except (OSError, AttributeError, ValueError, RuntimeError):
+            try:
+                connection = self._socket()
+                if connection is not None:
+                    connection.shutdown(socket.SHUT_RDWR)
+            except (OSError, AttributeError, ValueError):
+                pass
+        if os.name == "nt":
+            # On Windows shutdown does not reliably wake a timeout-mode read.
+            # http.client's makefile keeps _io_refs alive, so socket.close()
+            # merely marks the Python wrapper closed. Detach invalidates that
+            # wrapper before closing its native handle, preventing a later
+            # SocketIO cleanup from closing a recycled handle.
             connection = self._socket()
             if connection is not None:
-                connection.shutdown(socket.SHUT_RDWR)
-        except (OSError, AttributeError, ValueError):
-            pass
+                try:
+                    descriptor = connection.detach()
+                    if descriptor != -1:
+                        socket.close(descriptor)
+                except (OSError, AttributeError, ValueError):
+                    pass
         threading.Thread(target=self.response.close, name="model-response-close", daemon=True).start()
 
 
@@ -119,8 +139,17 @@ class GiteeProvider:
         self.key = str(config.get("GITEE_AI_API_KEY") or "")
         self.connect_timeout = float(config.get("GITEE_AI_CONNECT_TIMEOUT_SECONDS", 5))
         self.read_timeout = float(config.get("GITEE_AI_READ_TIMEOUT_SECONDS", config.get("CHAT_IDLE_TIMEOUT_SECONDS", 120)))
+        self.request_options = {}
+        if config.get("GITEE_AI_MAX_TOKENS"):
+            self.request_options["max_tokens"] = int(config["GITEE_AI_MAX_TOKENS"])
+        if config.get("GITEE_AI_REASONING_EFFORT"):
+            self.request_options["reasoning_effort"] = str(config["GITEE_AI_REASONING_EFFORT"])
 
-    def tokens(self, messages, model, stopped, on_response):
+    def json_tokens(self, messages, model, stopped, on_response):
+        yield from self.tokens(messages, model, stopped, on_response,
+                               response_format={"type": "json_object"})
+
+    def tokens(self, messages, model, stopped, on_response, *, response_format=None):
         if not self.key:
             raise GatewayError("模型服务尚未配置密钥，请在服务器 .env 中设置 GITEE_AI_API_KEY。", 503)
         if stopped.is_set():
@@ -129,7 +158,8 @@ class GiteeProvider:
             response = requests.post(
                 self.base + "/chat/completions",
                 headers={"Authorization": "Bearer " + self.key, "Accept": "text/event-stream", "Content-Type": "application/json"},
-                json={"model": model, "messages": messages, "stream": True},
+                json={"model": model, "messages": messages, "stream": True, **self.request_options,
+                      **({"response_format": response_format} if response_format is not None else {})},
                 stream=True,
                 allow_redirects=False,
                 timeout=(self.connect_timeout, self.read_timeout),
@@ -165,6 +195,8 @@ class GiteeProvider:
                 if not isinstance(choices, list) or not choices:
                     continue
                 choice = choices[0] if isinstance(choices[0], dict) else {}
+                if choice.get("finish_reason") == "length":
+                    raise GatewayError("模型输出达到令牌上限而被截断，请缩小需求或调整生成预算。", 502, "model_output_truncated")
                 if choice.get("finish_reason") is not None:
                     finished = True
                 delta = choice.get("delta") or {}
@@ -225,7 +257,7 @@ class GraphRuntime:
 
     @staticmethod
     def _secure_sqlite_file(path: Path, *, create: bool):
-        """Create privately or narrow an existing database/sidecar before SQLite opens it."""
+        """Apply POSIX private modes; Windows chmod does not replace account ACLs."""
         flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
         if create:
             flags |= os.O_CREAT
@@ -236,7 +268,12 @@ class GraphRuntime:
                 raise
             return
         try:
-            os.fchmod(descriptor, 0o600)
+            if hasattr(os, "fchmod"):
+                os.fchmod(descriptor, 0o600)
+            else:
+                # Windows supports only the read-only flag, not POSIX owner modes.
+                # Keep database writes available; access isolation relies on its ACL.
+                os.chmod(path, 0o600)
         finally:
             os.close(descriptor)
 

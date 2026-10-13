@@ -1,6 +1,7 @@
 <script setup>
 import { nextTick, ref } from 'vue';
 import Icon from './Icon.vue';
+import { fileLabel, fileIdentityHint } from '../fileLabels.js';
 
 const props = defineProps({
   draft: { type: String, default: '' },
@@ -43,8 +44,8 @@ defineExpose({ focus });
         @compositionend="composing = false; compositionEndedAt = Date.now()" />
       <div v-if="attachments.length" class="attach-chips">
         <div v-for="file in attachments" :key="file.id" class="attach-chip">
-          <span>{{ file.name }}</span>
-          <button type="button" :aria-label="`移除${file.name}`" @click="emit('remove-attachment', file.id)"><Icon name="close" small /></button>
+          <span :title="fileIdentityHint(file)">{{ fileLabel(file) }}</span>
+          <button type="button" :aria-label="`移除${fileLabel(file)}`" @click="emit('remove-attachment', file.id)"><Icon name="close" small /></button>
         </div>
       </div>
       <div class="composer-tools">

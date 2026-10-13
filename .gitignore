@@ -1,7 +1,70 @@
-.venv/
+# Local configuration, credentials and installed environments
+.env
+.env.*
+.venv*/
+venv/
+env/
+node_modules/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Private business data, market databases, exports and backups
+/data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.sql
+*.dump
+*.bak
+*.backup
+*.mapping.json
+/strategy_workshop/snapshot_database.py
+/strategy_workshop/sqlite_mapping.example.json
+
+# Internal documentation and development skills
+/docs/
+/产品手册.md
+/开发任务.md
+/开发手册.md
+/.agents/
+/.codex/
+/.skills/
+/skills/
+/strategy_workshop/README.md
+
+# Tests and local setup / validation scripts
+test/
+tests/
+test_*.py
+*_test.py
+*.test.*
+*.spec.*
+/scripts/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+playwright-report/
+test-results/
+
+# Generated caches, logs and temporary files
 __pycache__/
 *.py[cod]
-.env
-data/
-frontend/node_modules/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
 .DS_Store
+Thumbs.db
+
+# frontend/dist is intentionally tracked: the website serves this build.

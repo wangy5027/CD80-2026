@@ -1,10 +1,14 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import Icon from './components/Icon.vue';
 import Composer from './components/Composer.vue';
+import AgentPlatformPanel from './components/AgentPlatformPanel.vue';
 import { useWorkbench } from './useWorkbench.js';
+import { fileLabel, fileIdentityHint } from './fileLabels.js';
+const StrategyWorkshop = defineAsyncComponent(() => import('../strategy-workshop/StrategyWorkshop.vue'));
 
 const {
+  platform,
   s, notices, filePicker, composer, conversation, dialog, projectName, scheduleTitle, scheduleAt,
   agents, agent, model, project, recentTasks, searchResults, visibleFiles, sortedSchedules, attachedFiles,
   uploadCount, activePreviewFile, previewExtension, generationLabel, formatDate, relativeTime, fileSize,
@@ -14,11 +18,12 @@ const {
   restoreLastPrompt, copyText, messageContent, renderAssistant, sendMessage, stopMessage, setPrompt,
   onConversationScroll,
 } = useWorkbench();
+const knownFile = file => s.files.find(item => String(item.id) === String(file.id)) || file;
 
 const prompts = [
   { title: '看看我能做什么', icon: 'code', text: '介绍一下你能帮我做什么，并列出适合现在开始的三个任务。' },
   { title: '规划一个新任务', icon: 'grid', text: '帮我把这个想法梳理成可执行的计划，先向我确认目标、截止时间和现有资料。' },
-  { title: '构思视频脚本', icon: 'spark', text: '帮我整理一份视频创意方案。先询问产品、受众、渠道与时长，再给出脚本和分镜。' },
+  { title: '创建文件处理应用', icon: 'spark', text: '我想创建一个处理 CSV 的应用，请先和我确认分组列、求和列和输出要求，再展示流程供我确认。' },
 ];
 const taskFailure = computed(() => s.streaming ? '' : s.streamError || s.currentTask?.error || '');
 
@@ -85,6 +90,8 @@ function onDialogKeydown(event) {
         <nav class="nav-group" aria-label="主导航">
           <button class="nav-row" :class="{ active: s.view === 'home' && !s.currentTask }" type="button" @click="newTask"><Icon name="addCircle" /><span>新任务</span></button>
           <button class="nav-row" :class="{ active: s.view === 'schedule' }" type="button" @click="setView('schedule')"><Icon name="calendar" /><span>日程</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'applications' }" type="button" @click="setView('applications')"><Icon name="grid" /><span>应用</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'strategy-workshop' }" type="button" aria-label="策略工坊" title="策略工坊" @click="setView('strategy-workshop')"><Icon name="spark" /><span>策略工坊</span></button>
           <button class="nav-row" :class="{ active: s.view === 'extensions' }" type="button" @click="setView('extensions')"><Icon name="grid" /><span>扩展</span></button>
           <button class="nav-row" :class="{ active: s.view === 'files' }" type="button" @click="setView('files')"><Icon name="folder" /><span>文件</span></button>
         </nav>
@@ -115,9 +122,10 @@ function onDialogKeydown(event) {
 
     <main class="main-panel">
       <template v-if="s.view === 'home'">
+        <div class="agent-mode-toggle"><label for="interaction-mode">对话方式</label><select id="interaction-mode" v-model="s.interactionMode" :disabled="s.streaming"><option value="platform">主助手 · 对话与应用</option><option value="chat">普通对话 · 当前文字角色</option></select><small>{{ s.interactionMode === 'platform' ? '描述需求，选择已有应用或设计新流程。' : '使用当前角色进行文字交流。' }}</small></div>
         <div v-if="!s.currentTask" class="page home-scroll">
           <div class="welcome">
-            <h1>嗨，我是 <span class="headline-avatar">{{ agent?.glyph || 'F' }}</span> {{ agent?.name }}。<br class="mobile-break" />今天想做什么？</h1>
+            <h1>嗨，我是 <span class="headline-avatar">{{ agent?.glyph || 'F' }}</span> {{ s.interactionMode === 'platform' ? '成都八零主助手' : agent?.name }}。<br class="mobile-break" />今天想做什么？</h1>
             <Composer ref="composer" :draft="s.draft" :agent="agent" :model="model" :project="project" :attachments="attachedFiles" :streaming="s.streaming" :uploading="uploadCount" :model-unavailable="s.taskModelUnavailable" :has-models="s.models.length > 0" @update:draft="updateDraft" @send="sendMessage" @attach="showModal('attachments')" @project="showModal('projects')" @model="showModal('models')" @agent="showModal('agents')" @remove-attachment="removeAttachment" />
             <div class="prompt-grid"><button v-for="item in prompts" :key="item.title" class="prompt-card" type="button" @click="setPrompt(item.text)"><Icon :name="item.icon" /><span>{{ item.title }}</span></button></div>
             <div v-if="s.streamError" class="send-error" role="alert"><Icon name="info" small /><span>发送未完成：{{ s.streamError }} 输入内容已保留，请检查后再发送。</span></div>
@@ -136,11 +144,12 @@ function onDialogKeydown(event) {
                 <div v-if="message.role === 'user'" class="message-content">{{ messageContent(message) }}</div>
                 <div v-else-if="messageContent(message)" class="message-content" v-html="renderAssistant(message, index)" @click="onRenderedMessageClick($event, message)" />
                 <div v-else-if="message.streaming" class="message-content"><span class="message-typing"><i /><i /><i /></span></div>
-                <div v-if="message.attachments?.length" class="message-attachments" aria-label="引用文件"><span v-for="file in message.attachments" :key="file.id" class="message-attachment"><Icon name="file" small /><span>{{ file.name || '文件' }}</span></span></div>
+                <div v-if="message.attachments?.length" class="message-attachments" aria-label="引用文件"><span v-for="file in message.attachments" :key="file.id" class="message-attachment" :title="fileIdentityHint(knownFile(file))"><Icon name="file" small /><span>{{ fileLabel(knownFile(file)) }}</span></span></div>
                 <div v-if="messageContent(message)" class="message-actions"><button type="button" @click="copyText(messageContent(message))"><Icon name="copy" small /> 复制消息</button></div>
               </div>
             </div>
             <div v-if="taskFailure" class="send-error" role="alert"><Icon name="info" small /><span>上次回复未完成：{{ taskFailure }} 如需再次提问，可以先检查内容；再次发送会新增一条消息。</span><button type="button" @click="restoreLastPrompt">放回输入框</button></div>
+            <AgentPlatformPanel :platform="platform" :files="s.files" @upload="payload => chooseFiles('agent', payload)" @open-task="openTask" />
           </div>
           <div class="conversation-jump-wrap"><button v-if="s.showJump" class="conversation-jump" type="button" @click="scrollConversation">↓ 回到底部</button></div>
           <div class="chat-footer">
@@ -149,6 +158,13 @@ function onDialogKeydown(event) {
           </div>
         </div>
       </template>
+
+      <section v-else-if="s.view === 'applications'" class="page">
+        <div class="page-header"><div><h1 class="page-title">应用</h1><p class="page-subtitle">复用已经保存的流程，用新的输入完成任务。</p></div><div class="toolbar-actions"><button class="secondary-button" :disabled="platform.p.loading" @click="platform.refresh">同步状态</button><button class="primary-button" :disabled="s.streaming" @click="newTask(); s.interactionMode = 'platform'">对话创建应用</button></div></div>
+        <div class="page-body"><div class="surface-card"><h2>AI 策略工坊</h2><p>把投资想法匹配为固定策略，查看规则并进行历史行情验证。</p><button class="secondary-button" type="button" @click="setView('strategy-workshop')">打开策略工坊</button></div><AgentPlatformPanel :platform="platform" :files="s.files" catalog @upload="payload => chooseFiles('agent', payload)" @open-task="openTask" /></div>
+      </section>
+
+      <section v-else-if="s.view === 'strategy-workshop'" class="page"><div class="strategy-workshop-host"><StrategyWorkshop :key="String(s.user?.id || '')" :owner-key="s.user?.id" /></div></section>
 
       <section v-else-if="s.view === 'schedule'" class="page">
         <div class="page-header"><div><h1 class="page-title">日程</h1><p class="page-subtitle">把要做的事放在这里。工作台运行时会提醒到期日程。</p></div><div class="toolbar-actions"><button class="primary-button" type="button" @click="showModal('schedule')"><Icon name="add" small /> 新建日程</button></div></div>
@@ -170,11 +186,11 @@ function onDialogKeydown(event) {
           <div v-if="visibleFiles.length" class="item-list">
             <div v-for="item in visibleFiles" :key="item.id" class="item-card">
               <div class="item-card-icon"><Icon name="file" /></div>
-              <div class="item-card-main"><div class="item-card-title">{{ item.name }}</div><div class="item-card-detail">{{ fileSize(item.size) }}{{ item.projectId ? ' · ' + (s.projects.find((candidate) => String(candidate.id) === String(item.projectId))?.name || '项目文件') : '' }}</div></div>
+              <div class="item-card-main"><div class="item-card-title" :title="fileIdentityHint(item)">{{ fileLabel(item) }}</div><div class="item-card-detail">{{ fileSize(item.size) }}{{ item.projectId ? ' · ' + (s.projects.find((candidate) => String(candidate.id) === String(item.projectId))?.name || '项目文件') : '' }}</div></div>
               <div class="item-card-actions">
-                <button class="icon-button" type="button" title="预览" :aria-label="'预览' + item.name" @click="previewFile(item.id)"><Icon name="eye" small /></button>
-                <button class="icon-button" type="button" title="下载" :aria-label="'下载' + item.name" @click="downloadFile(item.id)"><Icon name="download" small /></button>
-                <button class="icon-button" type="button" title="删除" :aria-label="'删除' + item.name" @click="confirmDelete('file', item.id)"><Icon name="trash" small /></button>
+                <button class="icon-button" type="button" title="预览" :aria-label="'预览' + fileLabel(item)" @click="previewFile(item.id)"><Icon name="eye" small /></button>
+                <button class="icon-button" type="button" title="下载" :aria-label="'下载' + fileLabel(item)" @click="downloadFile(item.id)"><Icon name="download" small /></button>
+                <button class="icon-button" type="button" title="删除" :aria-label="'删除' + fileLabel(item)" @click="confirmDelete('file', item.id)"><Icon name="trash" small /></button>
               </div>
             </div>
           </div>
@@ -235,7 +251,7 @@ function onDialogKeydown(event) {
           <div class="modal-actions"><button class="secondary-button" type="button" @click="showModal('project')">创建项目</button></div>
         </template>
         <template v-else-if="s.modal.kind === 'attachments'">
-          <div class="modal-body"><button class="secondary-button attachment-upload" type="button" @click="chooseFiles('composer')"><Icon name="upload" small /> 上传新文件</button><div class="section-label">已有文件</div><div v-if="s.files.length" class="modal-list"><button v-for="item in s.files" :key="item.id" class="modal-option" :class="{ selected: s.attachedFileIds.some((id) => String(id) === String(item.id)) }" type="button" @click="toggleAttachment(item.id)"><Icon name="file" small /><span class="grow">{{ item.name }}<small>{{ fileSize(item.size) }}</small></span><Icon v-if="s.attachedFileIds.some((id) => String(id) === String(item.id))" name="check" small /></button></div><p v-else>还没有上传文件。</p></div>
+          <div class="modal-body"><button class="secondary-button attachment-upload" type="button" @click="chooseFiles('composer')"><Icon name="upload" small /> 上传新文件</button><div class="section-label">已有文件</div><div v-if="s.files.length" class="modal-list"><button v-for="item in s.files" :key="item.id" class="modal-option" :title="fileIdentityHint(item)" :class="{ selected: s.attachedFileIds.some((id) => String(id) === String(item.id)) }" type="button" @click="toggleAttachment(item.id)"><Icon name="file" small /><span class="grow">{{ fileLabel(item) }}<small>{{ fileSize(item.size) }}</small></span><Icon v-if="s.attachedFileIds.some((id) => String(id) === String(item.id))" name="check" small /></button></div><p v-else>还没有上传文件。</p></div>
           <div class="modal-actions"><button class="primary-button" type="button" @click="closeModal()">完成</button></div>
         </template>
         <template v-else-if="s.modal.kind === 'search'">
@@ -258,3 +274,7 @@ function onDialogKeydown(event) {
 
   <div id="toast-root" role="status" aria-live="polite"><div v-for="item in notices" :key="item.id" class="toast" :class="{ error: item.error }">{{ item.message }}</div></div>
 </template>
+
+<style scoped>
+.strategy-workshop-host { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #45423f transparent; }
+</style>

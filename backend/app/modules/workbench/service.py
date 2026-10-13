@@ -1,5 +1,6 @@
 """Workbench business operations and chat orchestration."""
 
+import hashlib
 import json
 import os
 import re
@@ -49,9 +50,15 @@ class WorkbenchService:
         self.active = {}
         self._lock = threading.RLock()
         self._file_locks = {}
+        self.platform = None
+        self.workshop = None
 
     def close(self):
         """Stop ongoing generation and close provider response streams."""
+        if self.workshop is not None:
+            self.workshop.close()
+        if self.platform is not None:
+            self.platform.close()
         with self._lock:
             active = list(self.active.values())
         for run in active:
@@ -115,6 +122,21 @@ class WorkbenchService:
 
     def state(self, user_id):
         """Return all current account state with private bindings hidden."""
+        # Older uploads predate content fingerprints. Fill them from the stored
+        # bytes once, while preserving any existing SHA256 approval bindings.
+        for item in self.store.get(user_id)["files"]:
+            if item.get("md5") and item.get("sha256"):
+                continue
+            try:
+                stream, _, lock = self.open_file(user_id, item["id"])
+            except GatewayError as error:
+                if error.status == 404:
+                    continue  # Keep a legacy missing-file record visible.
+                raise
+            try:
+                stream.close()
+            finally:
+                lock.release()
         state = self.store.get(user_id)
         state.pop("bindings", None)
         state["tasks"] = sorted((public_task(task) for task in state["tasks"]), key=lambda task: task.get("updatedAt", ""), reverse=True)
@@ -181,7 +203,7 @@ class WorkbenchService:
         return {"ok": True}
 
     def upload_file(self, user_id, upload, project_id):
-        """Save one uploaded file under the authenticated account."""
+        """Reuse identical uploads only within the same account/project/name."""
         if upload is None:
             raise GatewayError("请选择文件。", 400)
         state = self.store.get(user_id)
@@ -190,19 +212,62 @@ class WorkbenchService:
         data = upload.read(30 * 1024 * 1024 + 1)
         if len(data) > 30 * 1024 * 1024:
             raise GatewayError("单个文件不得超过 30 MB。", 413)
-        file_id = str(uuid4())
-        name = Path(upload.filename or "").name.replace("\r", "").replace("\n", "").replace("\x00", "")[:180]
-        metadata = {"id": file_id, "name": name, "size": len(data), "type": upload.content_type or "application/octet-stream", "projectId": project_id, "createdAt": now_iso()}
-        target = self.store.directory(user_id) / "files" / file_id
-        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        try:
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(data)
-            self.store.update(user_id, lambda current: current["files"].insert(0, metadata))
-        except BaseException:
-            target.unlink(missing_ok=True)
-            raise
-        return metadata
+        original_name = Path(upload.filename or "").name.replace("\r", "").replace("\n", "").replace("\x00", "")
+        name = original_name[:180]
+        md5 = hashlib.md5(data, usedforsecurity=False).hexdigest()
+        sha256 = hashlib.sha256(data).hexdigest()
+        # Serialize discovery and insertion so concurrent identical requests do
+        # not both create a file. This reserved lock key cannot be a file UUID.
+        with self._file_lock(user_id, "_uploads"):
+            state = self.store.get(user_id)
+            for item in state["files"]:
+                if item.get("projectId", "") != project_id or item.get("originalName", item["name"]) != original_name or item["size"] != len(data):
+                    continue
+                try:
+                    stream, existing, lock = self.open_file(user_id, item["id"])
+                except GatewayError as error:
+                    if error.status == 404:
+                        continue
+                    raise
+                try:
+                    if existing.get("md5") == md5 and existing.get("sha256") == sha256:
+                        # Metadata can outlive an externally changed file. Never
+                        # reuse an ID unless its current bytes also match.
+                        if stream.read(len(data) + 1) == data:
+                            return existing
+                finally:
+                    stream.close()
+                    lock.release()
+            file_id = str(uuid4())
+            metadata = {"id": file_id, "name": name, "originalName": original_name, "size": len(data), "md5": md5, "sha256": sha256, "type": upload.content_type or "application/octet-stream", "projectId": project_id, "createdAt": now_iso()}
+            target = self.store.directory(user_id) / "files" / file_id
+            descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                with os.fdopen(descriptor, "wb") as stream:
+                    stream.write(data)
+                self.store.update(user_id, lambda current: current["files"].insert(0, metadata))
+            except BaseException:
+                target.unlink(missing_ok=True)
+                raise
+            return metadata
+
+    def _backfill_file_hashes(self, user_id, metadata, stream):
+        """Persist missing digests without rewriting a known SHA256 fingerprint."""
+        missing = [key for key in ("md5", "sha256") if not metadata.get(key)]
+        if not missing:
+            return metadata
+        md5, sha256 = hashlib.md5(usedforsecurity=False), hashlib.sha256()
+        for chunk in iter(lambda: stream.read(65536), b""):
+            md5.update(chunk)
+            sha256.update(chunk)
+        stream.seek(0)
+        hashes = {"md5": md5.hexdigest(), "sha256": sha256.hexdigest()}
+        updates = {key: hashes[key] for key in missing}
+        def change(state):
+            item = next(value for value in state["files"] if value["id"] == metadata["id"])
+            item.update(updates)
+        self.store.update(user_id, change)
+        return {**metadata, **updates}
 
     def open_file(self, user_id, file_id):
         """Open a validated file and hold its lock until the HTTP body finishes."""
@@ -219,6 +284,11 @@ class WorkbenchService:
             if not os.path.isfile(stream.name):
                 stream.close()
                 raise GatewayError("文件内容不可读取。", 404)
+            try:
+                metadata = self._backfill_file_hashes(user_id, metadata, stream)
+            except BaseException:
+                stream.close()
+                raise
             return stream, metadata, lock
         except BaseException:
             lock.release()

@@ -20,6 +20,20 @@ def create_app(config=None):
     service = WorkbenchService(app.config)
     app.extensions["workbench_service"] = service
     app.register_blueprint(workbench)
+    from .modules.agent_platform.service import AgentPlatform
+    from .modules.agent_platform.routes import agents
+    platform = AgentPlatform(service, app.config)
+    from .modules.agent_platform.presets import register_builtin_agents
+    register_builtin_agents(platform)
+    service.platform = platform
+    app.extensions["agent_platform"] = platform
+    app.register_blueprint(agents)
+    from .modules.strategy_workshop.service import WorkshopService
+    from .modules.strategy_workshop.routes import workshop
+    workshop_service = WorkshopService(service, app.config)
+    service.workshop = workshop_service
+    app.extensions["strategy_workshop"] = workshop_service
+    app.register_blueprint(workshop)
 
     @app.before_request
     def protect_local_boundary():

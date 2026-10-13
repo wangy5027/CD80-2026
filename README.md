@@ -1,105 +1,83 @@
-# Ficagent 网站：Vue 3 + Flask + LangGraph
+# 成都八零 AI 原生金融应用平台
 
-Python 同时提供网页、账号、业务接口和流式对话。AI 使用 Gitee AI 的 GLM-5.3，由本地 LangGraph 管理上下文、模型调用和状态持久化。
+成都八零是面向个人金融研究与应用创作的本地网站，包含工作台、AI 应用平台和 AI 策略工坊。技术栈为 Vue 3 + Vite、Flask + Waitress、LangGraph、SQLite 和 Wasmtime。
 
-## 启动
+## 当前功能
 
-本机独立 Python 环境与模型密钥已经配置。在终端执行：
+- **工作台**：本地账号、流式聊天、会话历史、项目、文件和日程；未提交草稿按账号保存在当前浏览器。
+- **AI 应用平台**：主助手识别需求、澄清参数、调用已有应用，或生成包含工具和说明的新应用；用户确认流程和文件授权后执行，可保存为个人应用复用。
+- **AI 策略工坊**：分析自然语言投资想法，从十种固定策略中返回最接近的一条，解释相同点和不同点，供用户选择原方案或坚持自己的思路。
+- **自定义策略**：阶段二支持基于现有行情字段整理和补充买卖规则，用户确认后生成策略代码，完成隔离验证并确认采用，再进入回测。需要外部数据的策略会说明缺口，目前未开放外源数据上传或接入。
+- **回测与历史**：设置标的、区间和资金，查看费用口径并检查数据覆盖，展示收益指标、收益曲线、回撤和可复制代码；历史记录可回看各阶段完整对话及对应结果。
+- **语言风格**：策略工坊顶部默认“小白模式”，可切换“专家模式”，按账号记住选择。页面说明与后续回复使用所选风格，既有对话保留原文；切换不改变规则、代码或回测数值。
 
-```bash
-cd "/Users/jaylen/Desktop/成都八零/网站"
-python main.py
+新应用的流程预览不执行工具；生成代码只在 WASI 隔离环境运行。策略工坊的正式收益报告仍受数据完整性门槛约束，数据未满足门槛时只开放明确标记的诊断回测。目前不提供实盘自动交易。
+
+## 本地启动
+
+后端使用 Python 3.10 或更高版本。Windows PowerShell 在项目根目录执行：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe main.py
 ```
 
-浏览器打开 **http://127.0.0.1:8893/**。保持终端运行，按 `Ctrl+C` 停止。启动无需 Node.js、npm、桌面 App 或打包步骤。
+打开 [本地工作台](http://127.0.0.1:8893/desktop/)，注册或登录本地账号；从侧栏进入“应用”或“策略工坊”。服务仅监听 `127.0.0.1`，可使用 `main.py --port 8894` 更换端口。macOS/Linux 使用 `.venv/bin/python`。
 
-首次使用请点击页面的 **创建账号**，设置本网站的邮箱和密码。账号保存在本机，不要求邮箱验证码；请使用自己能记住的密码。现有外部平台账号不作为本站凭证。
+日常启动直接使用仓库内的 `frontend/dist/`，无需安装 Node.js。模型、行情数据及隔离运行时需要在部署环境另行配置；仅克隆源码不能完成全部策略生成与回测功能。
 
-本机已启用 `IMPORT_LEGACY_HISTORY=1`：首次创建的本地账号会接续唯一一份旧数据中的 **4 条任务记录**。之后注册的账号拥有各自独立的数据。导入只进行一次，不会把同一份旧记录分给后续账号。原始文件已有外部备份。
+## 部署配置
 
-## 模型与对话
+在本地自行创建根目录 `.env`，或设置以下环境变量。进程环境变量优先于 `.env`；模型密钥仅由后端读取。
 
-- 模型服务：`https://ai.gitee.com/v1`
-- 模型：`GLM-5.3`
-- 内置角色：通用助手、编程专家、视频策划助手。
-- 执行流程：准备系统提示词与历史 → 流式调用模型 → 保存最终回复。
-- LangGraph 状态保存在本机 SQLite；任务消息、项目、文件和日程按账号保存，重启后可继续对话。
+| 配置 | 用途与默认值 |
+| --- | --- |
+| `GITEE_AI_API_KEY` | 模型服务凭据，启用 AI 功能前需配置 |
+| `GITEE_AI_BASE_URL` | 模型接口，默认 `https://ai.gitee.com/v1` |
+| `GITEE_AI_MODEL` | 默认 `GLM-5.3` |
+| `PORT` | 默认 `8893` |
+| `DATA_DIR` | 账号、业务记录及产物目录，默认 `data` |
+| `FRONTEND_DIST` | 前端构建目录，默认 `frontend/dist` |
+| `AGENT_RUNTIME_DIR` | 已配置并通过完整性校验的 WASI 运行时目录，默认 `data/agent-runtime` |
+| `STRATEGY_WORKSHOP_SOURCE_DB` | 部署环境提供的原始行情库路径 |
+| `STRATEGY_WORKSHOP_MARKET_DB` | 规范化行情库路径 |
+| `STRATEGY_WORKSHOP_MAPPING_DIR` | 行情映射及血缘说明目录 |
+| `STRATEGY_WORKSHOP_INSTRUMENTS` | 需要额外配置时使用的证券交易元数据 JSON |
 
-网页中的“已配置”表示后端已设置密钥，实际连通性在发送消息时确认。认证失败、额度/限流、网络错误会显示明确提示。模型返回内容会逐步显示；停止生成或连接中断时保留已经收到的内容。
+具体配置默认值见 [backend/app/config.py](backend/app/config.py)。相对路径以项目根目录为基准；更改 `DATA_DIR` 不会自动迁移共享行情库或隔离运行时。
 
-附件上传、预览和下载继续可用；聊天支持文本、代码、CSV 等文本附件。当前不解析 PDF、图片和视频作为模型输入，也未接入代码执行、网页搜索或视频生成工具。视频策划角色输出脚本和分镜文本。
+行情库、映射和运行时应使用与当前代码契约兼容的部署资源。运行时缺失或校验失败时，生成工具与自定义策略执行不可用。数据库文件、用户记录、行情、密钥、安装环境以及本地开发资料均不随源码发布。
 
-## 私有配置
+## 前端开发
 
-后端自动读取网站根目录的 `.env`。本机真实密钥仅存放在该文件中，权限为 `600`，并已加入 `.gitignore`；前端和运行状态接口不会返回密钥。
+使用 Node.js 20.19+ 或 22.12+，在项目根目录执行：
 
-换环境时参考 `.env.example`，设置以下变量：
-
-```dotenv
-PORT=8893
-GITEE_AI_BASE_URL=https://ai.gitee.com/v1
-GITEE_AI_MODEL=GLM-5.3
-GITEE_AI_API_KEY=填写自己的访问令牌
-DATA_DIR=data
-FRONTEND_DIST=frontend/dist
-IMPORT_LEGACY_HISTORY=0
+```powershell
+npm --prefix frontend ci
+npm --prefix frontend run dev
 ```
 
-终端环境变量优先于 `.env`，命令行 `--port`、`--data-dir` 可覆盖对应配置。路径相对于网站目录，不受终端当前目录影响。例如：
+开发服务默认代理到 `http://127.0.0.1:8893`，需要同时启动后端。完成修改后构建发布资源：
 
-```bash
-python main.py --port 8894
+```powershell
+npm --prefix frontend run build
 ```
 
-更改模型配置或后端代码后需要重启。网站只监听本机 `127.0.0.1`。
+更多配置见 [前端说明](frontend/README.md)。
 
-## 目录
+## 源码目录
 
-```text
-网站/
-├── main.py                         日常启动入口
-├── requirements.txt                Python 依赖
-├── .env / .env.example              私有配置 / 无密钥示例
-├── frontend/src/                   Vue 源码
-├── frontend/dist/                  已生成的网页资源
-├── backend/app/
-│   ├── config.py                   配置
-│   └── modules/workbench/
-│       ├── auth.py                 本地账号和会话
-│       ├── graph_runtime.py        LangGraph 与模型接口
-│       ├── service.py              对话、项目、文件和日程
-│       ├── routes.py               HTTP 与 SSE 接口
-│       ├── store.py                账号数据持久化
-│       └── errors.py               安全错误响应
-├── data/
-│   ├── auth.sqlite3                密码哈希与登录会话
-│   ├── graph-checkpoints.sqlite3   LangGraph 状态
-│   └── users/                     各账号任务、项目和文件
-├── tests/                          自动回归测试
-└── .venv/                          本机 Python 环境
-```
+| 路径 | 职责 |
+| --- | --- |
+| `main.py` | 加载本地配置，启动 Flask / Waitress |
+| `backend/app/` | 应用工厂、配置和公共接口边界 |
+| `backend/app/modules/workbench/` | 账号、聊天、项目、文件和日程 |
+| `backend/app/modules/agent_platform/` | 意图分流、应用生成、确认、隔离执行与应用复用 |
+| `backend/app/modules/strategy_workshop/` | 策略匹配、改写、对话历史、语言风格和回测任务协调 |
+| `frontend/src/modules/workbench/` | 工作台与应用平台界面 |
+| `frontend/src/modules/strategy-workshop/` | 策略工坊、语言切换、对话与图表 |
+| `frontend/dist/` | Python 服务直接提供的已构建网页 |
+| `strategy_workshop/` | 十种策略、指标、回测引擎、行情读取及数据校验代码 |
 
-网站业务代码和网页资源均不依赖相邻“开发”目录。`.env` 和 `data/` 应私下备份，不要放入公开代码包。
-
-## 重建环境与开发
-
-换电脑时使用 Python 3.10 或更高版本重新创建环境，不要直接搬用 `.venv`：
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-python main.py
-```
-
-本机验证环境为 Python 3.11，LangGraph 1.2.14，SQLite checkpoint 3.1.1。修改 Vue 源码后的可选构建步骤见 [前端说明](frontend/README.md)，日常启动使用现成 `dist/`。
-
-运行 Python 回归测试：
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-```
-
-自动测试使用临时账号、临时数据和本地模拟模型。2026-10-12 另已通过真实 GLM-5.3 → LangGraph → Flask 的流式连通性测试，模型返回“连接成功”；未向模型发送现有任务或文件内容。
-
-本次验收通过 27 项 Python 回归测试、6 项前端测试及 8 项浏览器流程，涵盖登录、账号隔离、流式对话、停止生成、历史恢复、项目、附件和日程。完整记录保存在网站外的 `../整理备份/20261012-LangGraph验收/`。
+数据库访问代码属于运行源码，实际数据库和业务内容由部署环境独立管理。
