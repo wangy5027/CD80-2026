@@ -7,6 +7,19 @@ export const listSessions = signal => request(`${prefix}/sessions`, { signal });
 export const createSession = (title, signal) => request(`${prefix}/sessions`, { method: 'POST', body: { title }, signal });
 export const getSession = (id, signal) => request(`${prefix}/sessions/${segment(id)}`, { signal });
 export const listSessionFiles = (id, signal) => request(`${prefix}/sessions/${segment(id)}/files`, { signal });
+export const getResearchMemory = (sessionId, runId, signal) => request(`${prefix}/sessions/${segment(sessionId)}/memory${runId ? `?run_id=${segment(runId)}` : ''}`, { signal });
+export async function downloadResearchMemory(sessionId, memory, signal) {
+  const response = await fetch(`/desktop/api/explore/sessions/${segment(sessionId)}/memory/${segment(memory.id)}/download`, { credentials: 'include', signal });
+  if (!response.ok) throw new Error('记忆下载失败，请稍后重试。');
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `研究记忆-v${memory.version}.md`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 export const getSessionFile = (sessionId, fileId, signal) => request(`${prefix}/sessions/${segment(sessionId)}/files/${segment(fileId)}`, { signal });
 export const renameSessionFile = (sessionId, fileId, name, signal) => request(`${prefix}/sessions/${segment(sessionId)}/files/${segment(fileId)}`, { method: 'PATCH', body: { name }, signal });
 export const removeSessionFile = (sessionId, fileId, signal) => request(`${prefix}/sessions/${segment(sessionId)}/files/${segment(fileId)}`, { method: 'DELETE', signal });
@@ -25,6 +38,8 @@ export const getRun = (id, signal) => request(`${prefix}/runs/${segment(id)}`, {
 export const cancelRun = (id, signal) => request(`${prefix}/runs/${segment(id)}/cancel`, { method: 'POST', signal });
 export const retryRun = (id, idempotencyKey, signal) => request(`${prefix}/runs/${segment(id)}/retry`, { method: 'POST', body: { idempotency_key: idempotencyKey }, signal });
 export const provideJudgment = (id, judgment, signal) => request(`${prefix}/runs/${segment(id)}/input`, { method: 'POST', body: { judgment }, signal });
+export const submitFeedback = (id, body, signal) => request(`${prefix}/runs/${segment(id)}/feedback`, { method: 'POST', body, signal });
+export const finishRun = (id, idempotencyKey, signal) => request(`${prefix}/runs/${segment(id)}/finish`, { method: 'POST', body: { idempotency_key: idempotencyKey }, signal });
 export const clarifyRun = (id, body, signal) => request(`${prefix}/runs/${segment(id)}/clarify`, { method: 'POST', body, signal });
 export const confirmRun = (id, body, signal) => request(`${prefix}/runs/${segment(id)}/confirm`, { method: 'POST', body, signal });
 export const getReport = (id, signal) => request(`${prefix}/reports/${segment(id)}`, { signal });

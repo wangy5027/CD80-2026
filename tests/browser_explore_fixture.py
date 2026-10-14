@@ -47,7 +47,7 @@ from tests.browser_fixture import fixture_app
 CURRENT_ARTICLE = {
     "id": "browser-event-2026",
     "source": "eastmoney",
-    "source_name": "东方财富财经快讯（合成测试材料）",
+    "source_name": "东方财富财经快讯",
     "title": "合成测试材料：测试甲集团宣布收购测试乙公司",
     "summary": "这条合成新闻仅用于 Explore 浏览器验收。测试甲集团宣布拟收购测试乙公司，尚需监管与股东批准。",
     "published_at": "2026-10-12T10:00:00+08:00",
@@ -57,7 +57,7 @@ CURRENT_ARTICLE = {
 PAST_ARTICLE = {
     "id": "browser-history-2022",
     "source": "eastmoney",
-    "source_name": "东方财富财经快讯（合成测试材料）",
+    "source_name": "东方财富财经快讯",
     "title": "合成测试材料：2022 年测试丙集团并购测试丁公司",
     "summary": "这条合成过往材料仅用于验收历史案例筛选。该并购在 2022 年披露，后续整合情况未知。",
     "published_at": "2022-06-18T09:00:00+08:00",
@@ -132,12 +132,12 @@ class SyntheticNewsService:
         if source == "cls":
             for item in articles:
                 item.update(id=item["id"] + "-cls", source="cls",
-                            source_name="财联社电报（合成测试材料）", url=None)
+                            source_name="财联社电报", url=None)
         selected = [dict(item) for item in articles[offset:offset + limit]]
         fetched_at = datetime.now(timezone(timedelta(hours=8)))
         return {
             "provider": "browser-synthetic-news", "source": source,
-            "source_name": "财联社电报（合成测试材料）" if source == "cls" else "东方财富财经快讯（合成测试材料）",
+            "source_name": "财联社电报" if source == "cls" else "东方财富财经快讯",
             "items": selected,
             "pagination": {"limit": limit, "offset": offset,
                            "total": len(articles), "has_more": offset + limit < len(articles)},
@@ -152,9 +152,9 @@ class SyntheticNewsService:
 
     def get_sources(self):
         return {"provider": "browser-synthetic-news", "default_source": "eastmoney",
-                "sources": [{"id": "eastmoney", "name": "东方财富财经快讯（合成测试材料）",
+                "sources": [{"id": "eastmoney", "name": "东方财富财经快讯",
                              "interface": "fixture", "has_article_url": True},
-                            {"id": "cls", "name": "财联社电报（合成测试材料）",
+                            {"id": "cls", "name": "财联社电报",
                              "interface": "fixture", "has_article_url": False}],
                 "refresh": {"mode": "on_request", "ttl_seconds": 60,
                             "timeout_seconds": 1, "max_stale_seconds": 60,

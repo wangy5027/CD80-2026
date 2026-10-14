@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRenderer, nextTick } from 'vue';
 import { createRequire } from 'node:module';
-import { activeRun, reviewRun, runMaterials, confirmedMaterialIds, materialContentLabel, exploreHash, parseExploreHash, runTree, safeSourceUrl, stageLabel, retrievalSearches, searchStatusLabel, searchFreshnessLabel, sourceKindLabel, normalizeContexts, contextRequest, contextFiles } from './model.js';
+import { activeRun, feedbackRun, reviewRun, runMaterials, visibleRunMaterials, visibleNewFiles, isEventInitial, isHistoryLiteRun, eventInitialProgressLabel, confirmedMaterialIds, materialContentLabel, exploreHash, parseExploreHash, runTree, safeSourceUrl, stageLabel, retrievalSearches, searchStatusLabel, searchFreshnessLabel, sourceKindLabel, normalizeContexts, contextRequest, contextFiles } from './model.js';
 import { useExplore } from './useExplore.js';
+import { eventAngleRecommendations, isEventLite, pendingEventChoice } from './reportPresentation.js';
 
 const require = createRequire(import.meta.url);
 const format = require('../workbench/pages/format.js');
@@ -67,6 +68,98 @@ test('review materials use only saved source IDs and identify excerpts without c
   assert.equal(materialContentLabel('news_excerpt'), '快讯摘录，未读取新闻全文');
 });
 
+test('first event answer hides even historical saved news and only announces its input and answer files', () => {
+  const initial = {
+    id: 'r1', module: 'event', workflow_version: 'event-lite@1', phase: 'initial_explanation',
+    status: 'awaiting_feedback', initial_answer: '简明解释', initial_file_ids: { input: 'f-input', answer: 'f-answer' },
+    materials: [{ id: 'S1', title: '旧版首步曾保存的新闻', kind: 'web_search' }],
+    retrieval: { searches: [{ query: '旧版首步搜索' }], tool_trace: [{ name: 'web_search' }] },
+  };
+  const files = [
+    { id: 'f-source', source_run_id: 'r1', phase: 'initial_explanation', source_id: 'S1', kind: 'material', origin: 'web_search' },
+    { id: 'f-input', source_run_id: 'r1', phase: 'initial_explanation', source_id: null, kind: 'material', origin: 'user' },
+    { id: 'f-answer', source_run_id: 'r1', phase: 'initial_explanation', source_id: null, kind: 'report', origin: 'report' },
+    { id: 'f-other', source_run_id: 'another-run', phase: 'event_deep_report', kind: 'material', origin: 'web_search' },
+  ];
+  assert.equal(isEventInitial(initial), true);
+  assert.deepEqual(visibleRunMaterials(initial), []);
+  assert.deepEqual(visibleNewFiles(files, initial).map(file => file.id), ['f-input', 'f-answer']);
+  assert.equal(eventInitialProgressLabel({ ...initial, stage: 'searching_web' }), '正在探索');
+  assert.equal(eventInitialProgressLabel({ ...initial, stage: 'explaining', model_progress: { output_chars: 3 } }), '正在回复');
+  assert.equal(isEventInitial({ ...initial, phase: 'done', status: 'succeeded', feedback_choice: 'understood' }), true);
+  const deep = { ...initial, phase: 'event_deep_report', status: 'running', feedback_choice: 'explain_more' };
+  assert.equal(isEventInitial(deep), false);
+  assert.deepEqual(visibleRunMaterials(deep), initial.materials);
+  assert.deepEqual(visibleNewFiles(files, deep), files);
+  assert.equal(isEventInitial({ ...initial, report: { id: 'deep-report' } }), false);
+  assert.equal(isEventInitial({ ...initial, module: 'relation' }), false);
+});
+
+test('active first event step shows only its progress while the deep step keeps the research composer', async () => {
+  for (const phase of ['initial_explanation', 'event_deep_report']) {
+    const run = { id: 'r1', session_id: 's1', module: 'event', workflow_version: 'event-lite@1',
+      phase, status: 'running', stage: phase === 'initial_explanation' ? 'searching_web' : 'analyzing',
+      initial_answer: phase === 'event_deep_report' ? '首步简答' : null, report: null };
+    const h = harness('#explore?session=s1&run=r1', async rawUrl => {
+      const url = String(rawUrl);
+      if (url.endsWith('/sessions/s1')) return response({ session: { id: 's1' }, runs: [run] });
+      if (url.endsWith('/sessions')) return response({ sessions: [{ id: 's1' }] });
+      return response({ files: [], contexts: {} });
+    });
+    try {
+      await h.ready();
+      assert.equal(h.explore.showComposer.value, phase === 'event_deep_report');
+    } finally { h.close(); }
+  }
+});
+
+test('history first answer stays available while retrieval runs, after the report, and after reload', async () => {
+  const intro = {
+    id: 'r-history', session_id: 's-history', module: 'history', workflow_version: 'history-lite@1',
+    phase: 'history_report', status: 'running', stage: 'retrieving_news', question: '两家公司历史上有何联系？',
+    initial_answer: '当前关系可能受到过去合作的影响，因此要检索历史关联新闻。', report: null,
+  };
+  const report = {
+    id: 'p-history', module: 'history', report_format: 'history_lite@1',
+    recommendations: [
+      { module: 'event', question: '当时发生了什么？' },
+      { module: 'relation', question: '还有哪些关联主体？' },
+      { module: 'history', question: '更早还有哪些合作？' },
+    ],
+  };
+  const completed = { ...intro, status: 'succeeded', stage: 'completed', next_step_state: 'pending', report };
+  let current = intro;
+  const fetcher = async rawUrl => {
+    const url = String(rawUrl);
+    if (url.endsWith('/sessions/s-history')) return response({ session: { id: 's-history' }, runs: [current] });
+    if (url.endsWith('/runs/r-history')) return response({ run: completed });
+    if (url.endsWith('/sessions')) return response({ sessions: [{ id: 's-history' }] });
+    return response({ files: [], contexts: {} });
+  };
+  const first = harness('#explore?session=s-history&run=r-history', fetcher);
+  try {
+    await first.ready();
+    assert.equal(isHistoryLiteRun(first.explore.selectedRun.value), true);
+    assert.equal(first.explore.selectedRun.value.initial_answer, intro.initial_answer);
+    assert.equal(first.explore.isActive.value, true);
+    assert.equal(first.explore.showComposer.value, false);
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    await flush();
+    assert.equal(first.explore.selectedRun.value.initial_answer, intro.initial_answer);
+    assert.equal(first.explore.selectedReport.value.id, report.id);
+    assert.equal(first.explore.canChooseLiteRecommendation.value, true);
+    assert.equal(first.explore.showComposer.value, false);
+  } finally { first.close(); }
+  current = completed;
+  const reloaded = harness('#explore?session=s-history&run=r-history', fetcher);
+  try {
+    await reloaded.ready();
+    assert.equal(reloaded.explore.selectedRun.value.initial_answer, intro.initial_answer);
+    assert.equal(reloaded.explore.selectedReport.value.id, report.id);
+    assert.equal(reloaded.explore.canChooseLiteRecommendation.value, true);
+  } finally { reloaded.close(); }
+});
+
 test('module file preferences are isolated, bounded, and old run snapshots are readable', () => {
   const contexts = normalizeContexts({ event: { mode: 'manual', file_ids: ['f1', 'f2', 'f1'] }, relation: { mode: 'manual', file_ids: ['f3'] }, history: { mode: 'auto', file_ids: ['f4'] } });
   assert.deepEqual(contexts.event.file_ids, ['f1', 'f2']);
@@ -77,10 +170,24 @@ test('module file preferences are isolated, bounded, and old run snapshots are r
   assert.deepEqual(contextFiles({ report: { id: 'old' } }), []);
 });
 
-function harness(initialHash, fetchHandler, { preferences = new Map(), ownerId = 'owner-a' } = {}) {
+test('the second event answer accepts one model-authored question for each angle', () => {
+  const recommendations = [
+    { module: 'history', question: '过去类似变化何时失效？', reason: '验证条件' },
+    { module: 'event', question: '这次公告中的关键变化是什么？', reason: '厘清事实' },
+    { module: 'relation', question: '供应商会受到哪些传导影响？', reason: '查找关系' },
+  ];
+  const report = { id: 'p1', module: 'event', report_format: 'event_lite@2', recommendations };
+  assert.equal(isEventLite(report), true);
+  assert.deepEqual(eventAngleRecommendations(report).map(item => item.module), ['event', 'relation', 'history']);
+  assert.equal(pendingEventChoice({ report, next_step_state: 'pending' }), true);
+  assert.equal(pendingEventChoice({ report, next_step_state: 'continued' }), false);
+  assert.deepEqual(eventAngleRecommendations({ ...report, recommendations: recommendations.slice(0, 2) }), []);
+});
+
+function harness(initialHash, fetchHandler, { preferences = new Map(), pendingStore = new Map(), ownerId = 'owner-a' } = {}) {
   const old = { fetch: globalThis.fetch, window: globalThis.window, location: globalThis.location, history: globalThis.history, sessionStorage: globalThis.sessionStorage, localStorage: globalThis.localStorage };
   const listeners = new Map();
-  const store = new Map();
+  const store = pendingStore;
   globalThis.window = { addEventListener(name, listener) { listeners.set(name, listener); }, removeEventListener(name) { listeners.delete(name); } };
   globalThis.location = { pathname: '/desktop/', search: '', hash: initialHash };
   globalThis.history = { pushState(_state, _title, url) { globalThis.location.hash = new URL(url, 'http://example.test').hash; }, replaceState(_state, _title, url) { globalThis.location.hash = new URL(url, 'http://example.test').hash; } };
@@ -119,6 +226,65 @@ test('history stays visible through navigation and only an explicit hide persist
   const otherAccount = harness('#explore', fetcher, { preferences, ownerId: 'owner-b' });
   try { assert.equal(otherAccount.explore.state.historyOpen, true); }
   finally { otherAccount.close(); }
+});
+
+test('Explore model preference defaults to Flash, persists per owner, and ignores historical run models', async () => {
+  const preferences = new Map();
+  const runs = [{ id: 'r1', session_id: 's1', module: 'event', model: 'GLM-5.3-Flash', status: 'succeeded', report: { id: 'p1' } }];
+  const fetcher = async url => response(String(url).endsWith('/sessions/s1')
+    ? { session: { id: 's1', title: '研究' }, runs }
+    : { sessions: [{ id: 's1', title: '研究' }] });
+  const first = harness('#explore?session=s1&run=r1', fetcher, { preferences });
+  try {
+    await first.ready();
+    assert.equal(first.explore.state.model, 'GLM-5.3-Flash');
+    assert.equal(first.explore.setModel('GLM-5.3'), true);
+    assert.equal(first.explore.setModel('unlisted-model'), false);
+    first.explore.selectRun('r1');
+    first.explore.newExplore();
+    await first.explore.openSession('s1', 'r1');
+    assert.equal(first.explore.state.model, 'GLM-5.3');
+    assert.equal(preferences.get('ficagent-explore-model:owner-a'), 'GLM-5.3');
+  } finally { first.close(); }
+  const sameOwner = harness('#explore', fetcher, { preferences });
+  try { assert.equal(sameOwner.explore.state.model, 'GLM-5.3'); }
+  finally { sameOwner.close(); }
+  const otherOwner = harness('#explore', fetcher, { preferences, ownerId: 'owner-b' });
+  try { assert.equal(otherOwner.explore.state.model, 'GLM-5.3-Flash'); }
+  finally { otherOwner.close(); }
+  preferences.set('ficagent-explore-model:owner-a', 'no-longer-supported');
+  const invalid = harness('#explore', fetcher, { preferences });
+  try { assert.equal(invalid.explore.state.model, 'GLM-5.3-Flash'); }
+  finally { invalid.close(); }
+});
+
+test('new Explore submission freezes the selected model before creating its session', async () => {
+  const posts = [];
+  let resolveSession;
+  const h = harness('#explore', async (rawUrl, options = {}) => {
+    const url = String(rawUrl);
+    if (url.endsWith('/sessions') && options.method === 'POST') return new Promise(resolve => { resolveSession = resolve; });
+    if (url.endsWith('/sessions/s1/runs') && options.method === 'POST') {
+      posts.push(JSON.parse(options.body));
+      return response({ run: { id: 'r1', session_id: 's1', module: 'event', model: posts.at(-1).model, status: 'succeeded', report: { id: 'p1' } } });
+    }
+    if (url.endsWith('/sessions')) return response({ sessions: [] });
+    return response({ files: [], contexts: {} });
+  });
+  try {
+    await h.ready();
+    h.explore.setModel('GLM-5.3');
+    h.explore.state.draft = '本周发生了什么？';
+    const pending = h.explore.submit();
+    await flush();
+    assert.equal(h.explore.state.submitting, true);
+    assert.equal(h.explore.setModel('GLM-5.3-Flash'), false);
+    h.explore.state.model = 'GLM-5.3-Flash'; // Simulate a late external state update during createSession.
+    resolveSession(response({ session: { id: 's1', title: '本周发生了什么？' } }));
+    assert.equal(await pending, true);
+    assert.equal(posts.length, 1);
+    assert.equal(posts[0].model, 'GLM-5.3');
+  } finally { h.close(); }
 });
 
 test('a history row can be renamed or deleted without changing the open report or draft', async () => {
@@ -414,6 +580,60 @@ test('branch submission uses the selected report and reuses its key after a lost
     assert.equal(h.explore.state.runs.length, 2);
     assert.equal(h.explore.state.runs[0].report.id, 'p1');
   } finally { h.close(); }
+});
+
+test('a model change creates a distinct idempotent request after a lost create response', async () => {
+  const posts = [];
+  const root = { id: 'r1', session_id: 's1', module: 'event', status: 'succeeded', report: { id: 'p1' } };
+  const h = harness('#explore?session=s1&run=r1', async (rawUrl, options = {}) => {
+    if (options.method === 'POST') {
+      const body = JSON.parse(options.body);
+      posts.push(body);
+      if (posts.length < 3) throw new Error('connection lost');
+      return response({ run: { id: 'r2', session_id: 's1', module: body.module, model: body.model, status: 'succeeded', report: { id: 'p2' } } });
+    }
+    return response(String(rawUrl).endsWith('/sessions/s1')
+      ? { session: { id: 's1', title: '研究' }, runs: [root] }
+      : { sessions: [{ id: 's1', title: '研究' }] });
+  });
+  try {
+    await h.ready();
+    h.explore.state.draft = '同一个问题';
+    await h.explore.submit();
+    h.explore.setModel('GLM-5.3');
+    await h.explore.submit();
+    h.explore.setModel('GLM-5.3-Flash');
+    await h.explore.submit();
+    assert.deepEqual(posts.map(body => body.model), ['GLM-5.3-Flash', 'GLM-5.3', 'GLM-5.3-Flash']);
+    assert.notEqual(posts[0].idempotency_key, posts[1].idempotency_key);
+    assert.equal(posts[0].idempotency_key, posts[2].idempotency_key);
+  } finally { h.close(); }
+});
+
+test('regeneration keeps the original run model and omits model for legacy runs', async () => {
+  for (const originalModel of ['GLM-5.3', undefined]) {
+    const posts = [];
+    const run = { id: 'r1', session_id: 's1', module: 'event', question: '原问题', status: 'succeeded', report: { id: 'p1' } };
+    if (originalModel) run.model = originalModel;
+    const h = harness('#explore?session=s1&run=r1', async (rawUrl, options = {}) => {
+      if (options.method === 'POST') {
+        const body = JSON.parse(options.body);
+        posts.push(body);
+        return response({ run: { id: 'r2', session_id: 's1', module: body.module, status: 'queued' } });
+      }
+      return response(String(rawUrl).endsWith('/sessions/s1')
+        ? { session: { id: 's1', title: '研究' }, runs: [run] }
+        : { sessions: [{ id: 's1', title: '研究' }] });
+    });
+    try {
+      await h.ready();
+      h.explore.setModel(originalModel ? 'GLM-5.3-Flash' : 'GLM-5.3');
+      await h.explore.regenerate();
+      assert.equal(posts.length, 1);
+      assert.equal(posts[0].model, originalModel);
+      assert.equal(Object.hasOwn(posts[0], 'model'), Boolean(originalModel));
+    } finally { h.close(); }
+  }
 });
 
 test('late session response does not replace a newly chosen exploration', async () => {
@@ -712,6 +932,7 @@ test('clicking a recommendation creates one branch immediately with its module a
   try {
     await h.ready();
     h.explore.state.module = 'relation';
+    h.explore.setModel('GLM-5.3');
     h.explore.state.draft = '我自己还没提交的问题';
     assert.equal(await h.explore.runRecommendation(report.recommendations[0], 'not-p1'), false);
     const pending = h.explore.runRecommendation(report.recommendations[0], 'p1');
@@ -720,6 +941,7 @@ test('clicking a recommendation creates one branch immediately with its module a
     assert.equal(posts[0].module, 'history');
     assert.equal(posts[0].question, '验证这一判断');
     assert.equal(posts[0].source_report_id, 'p1');
+    assert.equal(posts[0].model, 'GLM-5.3');
     assert.equal(posts[0].context_mode, 'manual');
     assert.deepEqual(posts[0].file_ids, ['f1']);
     assert.equal(h.explore.state.draft, '我自己还没提交的问题');
@@ -830,5 +1052,275 @@ test('the file pool still follows an active session branch while an older report
     assert.deepEqual(h.explore.state.files.map(file => file.id), ['f2']);
     assert.equal(h.explore.selectedRun.value.id, 'r1');
     assert.ok(fileReads <= 2, 'background branch adds at most one file GET per status poll');
+  } finally { h.close(); }
+});
+
+test('saved first event answer restores and a lost feedback reply reuses its key after refresh', async () => {
+  const pendingStore = new Map();
+  const posts = [];
+  const first = { id: 'r1', session_id: 's1', module: 'event', question: '为什么波动？', status: 'awaiting_feedback', stage: 'awaiting_feedback', initial_answer: '预期发生变化。', report: null };
+  const fetcher = async (rawUrl, options = {}) => {
+    const url = String(rawUrl);
+    if (url.endsWith('/runs/r1/feedback') && options.method === 'POST') {
+      posts.push(JSON.parse(options.body));
+      if (posts.length === 1) throw new Error('connection lost');
+      return response({ run: { ...first, status: 'queued', stage: 'queued' } });
+    }
+    if (url.endsWith('/sessions/s1')) return response({ session: { id: 's1', title: '事件' }, runs: [first] });
+    if (url.endsWith('/sessions')) return response({ sessions: [{ id: 's1', title: '事件' }] });
+    return response({ files: [], contexts: {} });
+  };
+  const h1 = harness('#explore?session=s1&run=r1', fetcher, { pendingStore });
+  try {
+    await h1.ready();
+    assert.equal(feedbackRun(h1.explore.selectedRun.value), true);
+    assert.equal(h1.explore.showComposer.value, false);
+    assert.equal(posts.length, 0);
+    assert.equal(await h1.explore.chooseFeedback('explain_more'), false);
+  } finally { h1.close(); }
+  const h2 = harness('#explore?session=s1&run=r1', fetcher, { pendingStore });
+  try {
+    await h2.ready();
+    assert.equal(h2.explore.selectedRun.value.initial_answer, '预期发生变化。');
+    assert.equal(posts.length, 1);
+    assert.equal(await h2.explore.chooseFeedback('explain_more'), true);
+    assert.deepEqual(posts[0], posts[1]);
+    assert.equal(h2.explore.selectedRun.value.status, 'queued');
+    assert.equal(await h2.explore.chooseFeedback('understood'), false);
+  } finally { h2.close(); }
+});
+
+test('an understood first answer continues its own memory rather than its ancestor report', async () => {
+  for (const ancestor of [null, 'earlier-report']) {
+    const writes = [];
+    const first = { id: 'event-first', session_id: 's1', module: 'event',
+      question: '继续理解事件', source_report_id: ancestor, status: 'succeeded',
+      feedback_choice: 'understood', initial_answer: '本轮新增的解释', report: null,
+      memory_output: { id: 'memory-first', version: 2 } };
+    const fetcher = async (rawUrl, options = {}) => {
+      const url = String(rawUrl);
+      if (url.endsWith('/sessions/s1/runs') && options.method === 'POST') {
+        const body = JSON.parse(options.body);
+        writes.push(body);
+        return response({ run: { id: 'relation-next', session_id: 's1',
+          module: 'relation', status: 'queued', source_run_id: first.id,
+          source_report_id: null } });
+      }
+      if (url.endsWith('/sessions/s1')) return response({ session: { id: 's1', title: '记忆接续' }, runs: [first] });
+      if (url.endsWith('/sessions')) return response({ sessions: [{ id: 's1', title: '记忆接续' }] });
+      return response({ files: [], contexts: {} });
+    };
+    const h = harness('#explore?session=s1&run=event-first', fetcher);
+    try {
+      await h.ready();
+      assert.equal(h.explore.state.sourceReportId, '');
+      h.explore.state.module = 'relation';
+      h.explore.state.draft = '这与另一家公司有什么关联？';
+      await h.explore.submit();
+      assert.equal(writes.length, 1);
+      assert.equal(writes[0].source_run_id, first.id);
+      assert.equal(writes[0].source_report_id, null);
+      assert.deepEqual(runTree([first, { id: 'relation-next', source_run_id: first.id }]).map(item => item.depth), [0, 1]);
+    } finally { h.close(); }
+  }
+});
+
+test('each event angle starts one sourced Explore branch and refreshes its parent choice', async () => {
+  const recommendations = [
+    { module: 'event', question: '公告究竟改变了什么？', reason: '补全事件' },
+    { module: 'relation', question: '上下游会如何受影响？', reason: '追踪主体' },
+    { module: 'history', question: '过去何时出现过类似情况？', reason: '核对经验' },
+  ];
+  for (const item of recommendations) {
+    const report = { id: 'p1', module: 'event', report_format: 'event_lite@2', recommendations };
+    let parent = { id: 'r1', session_id: 's1', module: 'event', question: '事件问题', status: 'succeeded', next_step_state: 'pending', report };
+    const writes = [];
+    let parentReads = 0;
+    const h = harness('#explore?session=s1&run=r1', async (rawUrl, options = {}) => {
+      const url = String(rawUrl);
+      if (url.endsWith('/sessions/s1/runs') && options.method === 'POST') {
+        writes.push(JSON.parse(options.body));
+        parent = { ...parent, next_step_state: 'continued' };
+        return response({ run: { id: `child-${item.module}`, session_id: 's1', module: item.module, question: item.question, source_report_id: 'p1', status: 'queued' } });
+      }
+      if (url.endsWith('/runs/r1')) { parentReads += 1; return response({ run: parent }); }
+      if (url.endsWith('/sessions/s1')) return response({ session: { id: 's1', title: '事件' }, runs: [parent] });
+      if (url.endsWith('/sessions')) return response({ sessions: [{ id: 's1', title: '事件' }] });
+      return response({ files: [], contexts: {} });
+    });
+    try {
+      await h.ready();
+      assert.equal(h.explore.canChooseEventRecommendation.value, true);
+      assert.equal(h.explore.showComposer.value, false);
+      assert.equal(await h.explore.runRecommendation(item, 'p1'), true);
+      assert.equal(writes.length, 1);
+      assert.equal(writes[0].module, item.module);
+      assert.equal(writes[0].question, item.question);
+      assert.equal(writes[0].source_report_id, 'p1');
+      assert.equal(parentReads, 1);
+      h.explore.selectRun('r1');
+      assert.equal(h.explore.selectedRun.value.next_step_state, 'continued');
+      assert.equal(h.explore.canChooseEventRecommendation.value, false);
+      assert.equal(await h.explore.runRecommendation(item, 'p1'), false);
+      assert.equal(writes.length, 1);
+    } finally { h.close(); }
+  }
+});
+
+test('relation lite final choice starts only a recommended branch or closes the whole session', async () => {
+  const recommendations = [
+    { module: 'history', question: '过去类似关系何时成立？' },
+    { module: 'relation', question: '另一家供应商如何传导影响？' },
+    { module: 'event', question: '公告到底确认了哪些事实？' },
+  ];
+  const report = { id: 'relation-report', module: 'relation', report_format: 'relation_lite@2', recommendations };
+  const original = { id: 'relation-run', session_id: 'session-1', module: 'relation', status: 'succeeded', next_step_state: 'pending', report };
+  let parent = original;
+  const writes = [];
+  const branching = harness('#explore?session=session-1&run=relation-run', async (rawUrl, options = {}) => {
+    const url = String(rawUrl);
+    if (url.endsWith('/sessions/session-1/runs') && options.method === 'POST') {
+      writes.push(JSON.parse(options.body));
+      parent = { ...parent, next_step_state: 'continued' };
+      return response({ run: { id: 'child-run', session_id: 'session-1', module: 'history', status: 'queued', source_report_id: report.id } });
+    }
+    if (url.endsWith('/runs/relation-run')) return response({ run: parent });
+    if (url.endsWith('/sessions/session-1')) return response({ session: { id: 'session-1' }, runs: [parent] });
+    if (url.endsWith('/sessions')) return response({ sessions: [{ id: 'session-1' }] });
+    return response({ files: [], contexts: {} });
+  });
+  try {
+    await branching.ready();
+    assert.equal(branching.explore.canChooseLiteRecommendation.value, true);
+    assert.equal(branching.explore.showComposer.value, false);
+    assert.equal(await branching.explore.runRecommendation({ module: 'history', question: '另一道问题' }, report.id), false);
+    assert.equal(await branching.explore.runRecommendation(recommendations[0], report.id), true);
+    assert.deepEqual(writes.map(({ module, question, source_report_id }) => ({ module, question, source_report_id })),
+      [{ module: 'history', question: recommendations[0].question, source_report_id: report.id }]);
+    branching.explore.selectRun(original.id);
+    assert.equal(branching.explore.selectedRun.value.next_step_state, 'continued');
+    assert.equal(await branching.explore.finishAnalysis(), false);
+    assert.equal(await branching.explore.runRecommendation(recommendations[1], report.id), false);
+  } finally { branching.close(); }
+
+  let closed = false;
+  let finishCalls = 0;
+  const ending = harness('#explore?session=session-1&run=relation-run', async (rawUrl, options = {}) => {
+    const url = String(rawUrl);
+    if (url.endsWith('/runs/relation-run/finish') && options.method === 'POST') {
+      finishCalls += 1;
+      closed = true;
+      return response({ run: { ...original, next_step_state: 'finished' }, session: { id: 'session-1', closed_at: '2026-10-14T10:00:00Z' } });
+    }
+    if (url.endsWith('/sessions/session-1')) return response({ session: { id: 'session-1', ...(closed ? { closed_at: '2026-10-14T10:00:00Z' } : {}) }, runs: [original] });
+    if (url.endsWith('/sessions')) return response({ sessions: [{ id: 'session-1' }] });
+    return response({ files: [], contexts: {} });
+  });
+  try {
+    await ending.ready();
+    assert.equal(await ending.explore.finishAnalysis(), true);
+    assert.equal(ending.explore.sessionClosed.value, true);
+    assert.equal(ending.explore.selectedReport.value.id, report.id);
+    assert.equal(ending.explore.showComposer.value, false);
+    assert.equal(ending.explore.canStartRun.value, false);
+    assert.equal(await ending.explore.finishAnalysis(), false);
+    assert.equal(await ending.explore.runRecommendation(recommendations[0], report.id), false);
+    ending.explore.state.draft = '新问题';
+    assert.equal(await ending.explore.submit(), false);
+    assert.equal(finishCalls, 1);
+  } finally { ending.close(); }
+});
+
+test('finish retries with one key and a refreshed closed session cannot start another flow', async () => {
+  const pendingStore = new Map();
+  const posts = [];
+  const report = { id: 'p1', module: 'event', report_format: 'event_lite@2', recommendations: [
+    { module: 'event', question: '事件后续是什么？' }, { module: 'relation', question: '哪些主体受到影响？' }, { module: 'history', question: '历史上有何先例？' },
+  ] };
+  const initial = { id: 'r1', session_id: 's1', module: 'event', status: 'succeeded', next_step_state: 'pending', report };
+  const closed = { id: 's1', title: '事件', closed_at: '2026-10-14T09:30:00Z' };
+  let finished = false;
+  const fetcher = async (rawUrl, options = {}) => {
+    const url = String(rawUrl);
+    if (options.method === 'POST') {
+      posts.push({ url, body: JSON.parse(options.body) });
+      if (url.endsWith('/runs/r1/finish')) {
+        if (posts.length === 1) throw new Error('connection lost');
+        finished = true;
+        return response({ run: { ...initial, next_step_state: 'finished' }, session: closed });
+      }
+      throw new Error('closed session must not accept another write');
+    }
+    if (url.endsWith('/sessions/s1')) return response({ session: finished ? closed : { id: 's1', title: '事件' }, runs: [{ ...initial, next_step_state: finished ? 'finished' : 'pending' }] });
+    if (url.endsWith('/sessions')) return response({ sessions: [finished ? closed : { id: 's1', title: '事件' }] });
+    return response({ files: [], contexts: {} });
+  };
+  const h1 = harness('#explore?session=s1&run=r1', fetcher, { pendingStore });
+  try {
+    await h1.ready();
+    assert.equal(await h1.explore.finishEvent(), false);
+    assert.match(h1.explore.state.actionError, /沿用本次请求/);
+  } finally { h1.close(); }
+  const h2 = harness('#explore?session=s1&run=r1', fetcher, { pendingStore });
+  try {
+    await h2.ready();
+    assert.equal(await h2.explore.finishEvent(), true);
+    assert.deepEqual(posts[0], posts[1]);
+    assert.equal(h2.explore.sessionClosed.value, true);
+    assert.equal(h2.explore.showComposer.value, false);
+    assert.equal(h2.explore.canStartRun.value, false);
+    assert.equal(await h2.explore.finishEvent(), false);
+    assert.equal(await h2.explore.runRecommendation(report.recommendations[0], 'p1'), false);
+    assert.equal(await h2.explore.saveContext(), false);
+    h2.explore.state.draft = '绕过只读限制';
+    assert.equal(await h2.explore.submit(), false);
+    assert.equal(posts.length, 2);
+  } finally { h2.close(); }
+  const h3 = harness('#explore?session=s1&run=r1', fetcher);
+  try {
+    await h3.ready();
+    assert.equal(h3.explore.sessionClosed.value, true);
+    assert.equal(h3.explore.selectedReport.value.id, 'p1');
+    assert.equal(h3.explore.showComposer.value, false);
+    assert.equal(h3.explore.startRename(), false);
+    assert.equal(h3.explore.startDelete(), false);
+    h3.explore.newExplore();
+    assert.equal(h3.explore.sessionClosed.value, false);
+    assert.equal(h3.explore.showComposer.value, true);
+  } finally { h3.close(); }
+});
+
+test('event feedback and final OK each ignore a second click while the first request is pending', async () => {
+  const report = { id: 'p1', module: 'event', report_format: 'event_lite@2', recommendations: [
+    { module: 'event', question: '发生了什么？' }, { module: 'relation', question: '关联主体是谁？' }, { module: 'history', question: '过去如何变化？' },
+  ] };
+  const first = { id: 'r1', session_id: 's1', module: 'event', status: 'awaiting_feedback', initial_answer: '先看预期。' };
+  let resolveFeedback;
+  let resolveFinish;
+  const posts = [];
+  const h = harness('#explore?session=s1&run=r1', async (rawUrl, options = {}) => {
+    const url = String(rawUrl);
+    if (options.method === 'POST') {
+      posts.push(url);
+      if (url.endsWith('/feedback')) return new Promise(resolve => { resolveFeedback = () => resolve(response({ run: { ...first, status: 'succeeded', next_step_state: 'pending', report } })); });
+      if (url.endsWith('/finish')) return new Promise(resolve => { resolveFinish = () => resolve(response({ run: { ...first, status: 'succeeded', next_step_state: 'finished', report }, session: { id: 's1', closed_at: '2026-10-14T10:00:00Z' } })); });
+    }
+    if (url.endsWith('/sessions/s1')) return response({ session: { id: 's1' }, runs: [first] });
+    if (url.endsWith('/sessions')) return response({ sessions: [{ id: 's1' }] });
+    return response({ files: [], contexts: {} });
+  });
+  try {
+    await h.ready();
+    const feedbackPending = h.explore.chooseFeedback('explain_more');
+    assert.equal(await h.explore.chooseFeedback('understood'), false);
+    assert.equal(posts.length, 1);
+    resolveFeedback();
+    assert.equal(await feedbackPending, true);
+    const finishPending = h.explore.finishEvent();
+    assert.equal(await h.explore.finishEvent(), false);
+    assert.equal(posts.length, 2);
+    resolveFinish();
+    assert.equal(await finishPending, true);
+    assert.equal(h.explore.sessionClosed.value, true);
   } finally { h.close(); }
 });

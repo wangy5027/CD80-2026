@@ -118,26 +118,36 @@ class ExplorePoolTests(unittest.TestCase):
         self.assertEqual(self.provider.calls[-1]['context'], [])
         self.assertEqual(self.provider.calls[-1]['context_files'], [])
 
-    def test_auto_context_stays_on_branch_and_omits_removed_files_from_model(self):
+    def test_auto_context_stays_on_branch_and_removed_memory_blocks_reuse(self):
         sid = self.session()
         root, _ = self.ready(sid)
         branch_a, _ = self.ready(sid, 'relation', source_report_id=root['report']['id'])
         branch_b, _ = self.ready(sid, 'relation', source_report_id=root['report']['id'])
         removed_id = root['report']['file_id']
-        self.assertEqual(self.client.delete(self.file_path(sid, removed_id)).status_code, 200)
         run, _ = self.ready(sid, source_report_id=branch_a['report']['id'])
         ids = {item['file_id'] for item in run['context_files']}
         self.assertIn(branch_a['report']['file_id'], ids)
         self.assertNotIn(branch_b['report']['file_id'], ids)
-        self.assertNotIn(removed_id, ids)
         self.assertNotIn(branch_b['id'], {item['source_run_id'] for item in run['context_files']})
         self.assertLessEqual(len(ids), 8)
         self.assertEqual(self.provider.calls[-1]['context'], [])
         self.assertEqual(self.provider.calls[-1]['context_files'], run['context_files'])
+        self.assertEqual(self.client.delete(self.file_path(sid, removed_id)).status_code, 200)
         preview = self.client.get(BASE + f"/sessions/{sid}/context?module=event&source_report_id={branch_a['report']['id']}").json['context']
-        self.assertEqual(set(preview['preview_file_ids']), ids)
+        preview_ids = set(preview['preview_file_ids'])
+        self.assertTrue(ids - {removed_id} <= preview_ids)
+        self.assertNotIn(removed_id, preview_ids)
+        self.assertNotIn(branch_b['report']['file_id'], preview_ids)
+        self.assertLessEqual(len(preview_ids), 8)
+        calls = len(self.provider.calls)
+        response = self.client.post(BASE + f'/sessions/{sid}/runs', json={
+            'module': 'event', 'question': '继续核对本研究',
+            'source_report_id': branch_a['report']['id'], 'idempotency_key': str(uuid4())})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json['code'], 'explore_memory_dependency_missing')
+        self.assertEqual(len(self.provider.calls), calls)
 
-    def test_selected_snapshot_frozen_before_execution_survives_rename_and_remove(self):
+    def test_frozen_snapshot_survives_rename_but_removal_blocks_late_report(self):
         sid = self.session()
         parent, _ = self.ready(sid, question='新能源政策影响光伏产业。' * 70)
         fid = parent['report']['file_id']
@@ -158,14 +168,14 @@ class ExplorePoolTests(unittest.TestCase):
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline:
                 restored = self.client.get(BASE + f"/runs/{run['id']}").json['run']
-                if restored.get('report'):
+                if restored.get('report') or restored['status'] == 'failed':
                     break
                 time.sleep(.01)
-            self.assertIn(restored['status'], {'partial', 'succeeded'})
+            self.assertEqual(restored['status'], 'failed')
             self.assertEqual(restored['context_files'], snapshot)
-            self.assertEqual(restored['report']['context_files'], snapshot)
+            self.assertIsNone(restored['report'])
+            self.assertIsNone(restored['memory_output'])
             self.assertEqual(self.provider.calls[-1]['context_files'], snapshot)
-            self.assertIn(snapshot[0]['name'], restored['report']['markdown'])
             self.assertEqual(self.client.get(BASE + f'/sessions/{sid}/context').json['contexts']['relation']['file_ids'], [])
         finally:
             self.provider.release.set()

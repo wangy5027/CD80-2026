@@ -6,9 +6,12 @@ The regression deliberately does not contact a model or an external source.
 
 import unittest
 
+from tests import test_explore_research_runtime as runtime_fixtures
 from backend.app.modules.explore.research_task import (
     build_research_task, keywords, qualified_source, relevance, search_queries,
+    search_result_acceptable, search_result_score,
 )
+from backend.app.modules.workbench.tool_registry import ToolResult, ToolSpec
 
 
 OLD_RUNS = {
@@ -156,6 +159,101 @@ class ResearchTaskTests(unittest.TestCase):
                 queries = search_queries({"question": question,
                     "context_snapshot": [{"title": "新能源政策研究报告"}]})
                 self.assertTrue(queries[0].startswith("新能源政策研究报告 "))
+
+    def test_web_search_leads_do_not_require_literal_subject_and_event_overlap(self):
+        question = "历史上资金抱团防御题材之后市场怎么走？"
+        related = {"title": "银行、电力等红利板块走强后的A股表现",
+                   "snippet": "复盘防御方向的资金流向与随后指数变化"}
+        self.assertFalse(qualified_source(question, related))
+        self.assertTrue(search_result_acceptable(question, related))
+        self.assertGreaterEqual(search_result_score(question, related), 0)
+        self.assertTrue(search_result_acceptable(
+            "尊界V800制动支架事件", {"title": "车企回应零部件争议", "snippet": "正文待读取"}))
+        self.assertTrue(search_result_acceptable(
+            "A股这周行情怎么样", {"title": "A股主要指数本周震荡", "snippet": "沪深市场分化"}))
+
+    def test_web_search_explicit_model_and_index_identity_conflicts(self):
+        for question, title in (
+            ("尊界V800制动支架事件", "尊界V8000制动支架测试"),
+            ("尊界V800制动支架事件", "尊界V700制动支架测试"),
+            ("问界M7事故", "问界M70事故"),
+            ("沪深300这两天走势", "沪深3000策略报告"),
+            ("沪深300这两天走势", "上证50这两天走势"),
+        ):
+            with self.subTest(question=question, title=title):
+                self.assertFalse(search_result_acceptable(question, {"title": title, "snippet": ""}))
+        self.assertTrue(search_result_acceptable(
+            "尊界V800制动支架事件", {"title": "尊界V800 Pro测试", "snippet": ""}))
+        self.assertTrue(search_result_acceptable(
+            "沪深300这两天走势", {"title": "沪深300走势", "snippet": ""}))
+        self.assertTrue(search_result_acceptable(
+            "沪深300这两天走势", {"title": "市场走势观察", "snippet": "未注明指数"}))
+
+    def test_web_search_precise_document_identity_remains_a_hard_boundary(self):
+        article = "请核查论文s41562-022-01320-y的数据声明"
+        self.assertFalse(search_result_acceptable(article, {"title": "Nature另一论文", "snippet": ""}))
+        self.assertTrue(search_result_acceptable(article, {
+            "title": "Nature论文", "url": "https://www.nature.com/articles/s41562-022-01320-y"}))
+        doi = "核查DOI:10.1038/s41562-022-01320-y的数据声明"
+        self.assertFalse(search_result_acceptable(doi, {"title": "Nature另一论文", "snippet": ""}))
+        self.assertTrue(search_result_acceptable(doi, {
+            "title": "Nature论文", "url": "https://doi.org/10.1038/s41562-022-01320-y"}))
+
+    def test_web_search_score_is_soft_and_repeated_calls_are_stable(self):
+        question = "尊界V800制动支架事件"
+        exact = {"title": "尊界V800制动支架事件回应", "snippet": "车企公开表态"}
+        related = {"title": "尊界汽车回应零部件问题", "snippet": "制动支架仍待核对"}
+        unknown = {"title": "行业观察", "snippet": ""}
+        self.assertTrue(all(search_result_acceptable(question, item)
+                            for item in (exact, related, unknown)))
+        self.assertGreater(search_result_score(question, exact), search_result_score(question, related))
+        self.assertGreater(search_result_score(question, related), search_result_score(question, unknown))
+        self.assertEqual(search_result_score(question, unknown), 0)
+
+
+class SoftSearchRuntimeTests(unittest.TestCase):
+    owner = runtime_fixtures.ResearchRuntimeTests.owner
+    setUp = runtime_fixtures.ResearchRuntimeTests.setUp
+    tearDown = runtime_fixtures.ResearchRuntimeTests.tearDown
+    make_runtime = runtime_fixtures.ResearchRuntimeTests.make_runtime
+
+    def test_history_runtime_keeps_a_semantic_search_lead_without_literal_overlap(self):
+        self.search.title = "银行电力等红利板块走强后的A股表现"
+        self.search.snippet = "复盘防御方向资金流向与随后指数变化"
+        runtime, _service, _saved, _control = self.make_runtime(
+            runtime_fixtures.ScriptProvider([]), "历史上资金抱团防御题材之后市场怎么走？",
+            module="history")
+        result = runtime.execute("web_search", {"query": "资金抱团防御题材"}, "soft-history")
+        self.assertEqual(len(result["evidence"]), 1)
+        self.assertEqual(result["rejected_irrelevant"], 0)
+        self.assertEqual(result["evidence"][0]["title"], self.search.title)
+
+    def test_runtime_stably_ranks_first_eight_and_keeps_homepage_guard(self):
+        rows = [
+            {"title": "行业观察", "snippet": "暂无详情", "url": "https://other.example.test/a"},
+            {"title": "尊界汽车制动支架观察", "snippet": "需核对车型", "url": "https://public.example.test/b"},
+            {"title": "尊界V800制动支架事件回应", "snippet": "车企已说明", "url": "https://public.example.test/c"},
+            {"title": "尊界V8000制动支架事件", "snippet": "其他车型", "url": "https://public.example.test/d"},
+        ]
+
+        def tool():
+            return ToolSpec(name="web_search", description="本地排序测试",
+                parameters={"type": "object", "properties": {"query": {"type": "string"}},
+                            "required": ["query"], "additionalProperties": False},
+                handler=lambda _args, _context: ToolResult(content={"searchedAt": "2026-10-10"},
+                                                          sources=rows),
+                capabilities=frozenset({"search"}), max_calls=3)
+
+        self.search.tool = tool
+        runtime, _service, _saved, _control = self.make_runtime(
+            runtime_fixtures.ScriptProvider([]), "尊界V800制动支架事件")
+        result = runtime.execute("web_search", {"query": "尊界V800制动支架事件"}, "soft-ranked")
+        self.assertEqual([item["title"] for item in result["evidence"]],
+                         [rows[2]["title"], rows[1]["title"], rows[0]["title"]])
+        self.assertEqual(result["rejected_irrelevant"], 1)
+        self.assertIn(rows[0]["url"], runtime.allowed_urls)
+        self.assertNotIn("https://other.example.test/", runtime.allowed_urls)
+        self.assertIn("https://public.example.test/", runtime.allowed_urls)
 
 
 if __name__ == "__main__":

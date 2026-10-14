@@ -15,10 +15,12 @@ from ..workbench.errors import GatewayError
 from ..workbench.tool_registry import ToolContext, ToolRegistry
 from .contracts import parse_json_object, safe_url
 from .repository import ACTIVE, timestamp
-from .research_task import build_research_task, qualified_source, search_queries
+from .research_task import (build_research_task, qualified_source, search_queries,
+                            search_result_acceptable, search_result_score)
 from .evidence import EvidenceSession
 from .public_reader import build_public_reader_tool
 from .historical_eligibility import eligible_historical_ids
+from .memory_context import MEMORY_INSTRUCTION, inject_memory_payload, memory_trace
 
 WORKFLOW_VERSION = "explore-research@1"
 PROMPT_VERSION = "research-loop@2"
@@ -418,6 +420,30 @@ class ResearchRuntime:
         ):
             raise GatewayError("研究运行已停止或版本改变。", 409)
 
+    def _memory_for_model(self, stage, *, record=True):
+        # The initial read prepares the context budget. Every actual provider
+        # request, including retries, rechecks the same frozen dependency.
+        resolver = getattr(self.service, "_memory_for_model", None)
+        if record and callable(resolver):
+            return resolver(self.control, stage)
+        validator = getattr(self.repo, "validate_memory", None)
+        if callable(validator):
+            snapshot = validator(self.owner, self.run["id"],
+                                 execution_id=self.control["execution_id"])
+        elif self.run.get("memory_input") is None:
+            snapshot = None
+        else:
+            raise GatewayError("研究记忆无法校验。", 409, "explore_memory_unavailable")
+        if record:
+            try:
+                metadata = memory_trace(snapshot)
+            except (ValueError, TypeError):
+                raise GatewayError("研究记忆无效。", 409,
+                                   "explore_memory_invalid") from None
+            self.control.setdefault("model_memory_trace", []).append(
+                {"stage": stage, "at": timestamp(), **metadata})
+        return snapshot
+
     def _save(self):
         self._check()
         state = {
@@ -434,6 +460,7 @@ class ResearchRuntime:
             },
             "public_dns_mode": getattr(self.service, "public_dns_mode", "system"),
             "retrieval": self.retrieval,
+            "model_memory_trace": self.control.get("model_memory_trace", []),
             "research_stop_reason": self.stop_reason,
             "research_budget": {
                 "model_rounds": self.rounds,
@@ -557,7 +584,13 @@ class ResearchRuntime:
             output["result"] = content
             return output
         rejected = 0
-        for item in (result.sources or [])[:8]:
+        candidates = list(result.sources or [])[:8]
+        search_query = args.get("query") or self.task["resolved_goal"]
+        if name == "web_search":
+            # Rank only the existing bounded candidate window. A short snippet
+            # with no literal keyword overlap remains a usable search lead.
+            candidates.sort(key=lambda item: search_result_score(search_query, item), reverse=True)
+        for item in candidates:
             title = str(item.get("title") or item.get("name") or "")[:500]
             text = str(
                 item.get("snippet") or item.get("summary") or item.get("text") or ""
@@ -577,15 +610,15 @@ class ResearchRuntime:
                         continue
                 except (ValueError, TypeError):
                     published = None
-            if name == "web_search" and not qualified_source(
-                args.get("query") or self.task["resolved_goal"],
-                {"title": title, "summary": text, "url": url},
-            ):
+            candidate = {"title": title, "summary": text, "url": url}
+            if name == "web_search" and not search_result_acceptable(search_query, candidate):
                 rejected += 1
                 continue
             if url:
                 self.allowed_urls.add(urldefrag(url)[0])
-                if name == "web_search":
+                # A weak search lead may authorize its returned article URL,
+                # never a whole site's homepage without the older qualification.
+                if name == "web_search" and qualified_source(search_query, candidate):
                     self._allow_source_home(url)
             source = self.evidence.add_source(
                 {
@@ -804,23 +837,29 @@ class ResearchRuntime:
                     "fetch_public_page", {"url": url}, f"url-{i + 1}", seed=True
                 )
             )
+        memory_snapshot = self._memory_for_model("research", record=False)
+        try:
+            memory_metadata = memory_trace(memory_snapshot)
+            first_payload = inject_memory_payload(
+                {
+                    "research_task": self.task,
+                    "query_candidates": search_queries(self.run),
+                    "selected_evidence": self.evidence.selected_catalog(),
+                    "authorized_public_urls": self.authorized_public_urls,
+                    "url_reads": seed,
+                    "budget": self.limits,
+                }, memory_snapshot)
+        except (ValueError, TypeError):
+            raise GatewayError("研究记忆无效。", 409, "explore_memory_invalid") from None
         messages = [
             {
                 "role": "system",
-                "content": RESEARCH_PROMPT + "\n" + self.primary["instructions"],
+                "content": (RESEARCH_PROMPT + "\n" + self.primary["instructions"]
+                            + ("\n" + MEMORY_INSTRUCTION if memory_snapshot is not None else "")),
             },
             {
                 "role": "user",
-                "content": compact(
-                    {
-                        "research_task": self.task,
-                        "query_candidates": search_queries(self.run),
-                        "selected_evidence": self.evidence.selected_catalog(),
-                        "authorized_public_urls": self.authorized_public_urls,
-                        "url_reads": seed,
-                        "budget": self.limits,
-                    }
-                ),
+                "content": compact(first_payload),
             },
         ]
         definitions = self.registry.definitions()
@@ -887,6 +926,16 @@ class ResearchRuntime:
                 self._check()
                 if attempt > 1:
                     self._prune_deleted(messages)
+                stage = "ledger" if final else "research"
+                current_memory = self._memory_for_model(stage)
+                try:
+                    current_metadata = memory_trace(current_memory)
+                except (ValueError, TypeError):
+                    raise GatewayError("研究记忆无效。", 409,
+                                       "explore_memory_invalid") from None
+                if current_metadata != memory_metadata:
+                    raise GatewayError("研究记忆版本已改变，请重新发起研究。", 409,
+                                       "explore_memory_changed")
                 parts, calls, size = [], [], 0
                 expired = threading.Event()
 
@@ -901,7 +950,13 @@ class ResearchRuntime:
                     if response is not None:
                         response.abort()
 
-                provider = self.service._provider_for_deadline(self.research_deadline) if callable(getattr(self.service, '_provider_for_deadline', None)) else self.service.provider
+                provider_for_run = getattr(self.service, '_provider_for_run', None)
+                if callable(provider_for_run):
+                    provider = provider_for_run(self.research_deadline, self.control, stage)
+                else:
+                    provider = (self.service._provider_for_deadline(self.research_deadline)
+                                if callable(getattr(self.service, '_provider_for_deadline', None))
+                                else self.service.provider)
                 shared_provider = self.service.provider
                 try:
                     clipped_read_timeout = (
@@ -925,7 +980,7 @@ class ResearchRuntime:
                 timer.start()
                 model_started = time.monotonic()
                 model_record = {'round': self.rounds, 'attempt': attempt,
-                                'stage': 'ledger' if final else 'research', 'status': 'running'}
+                                'stage': stage, 'status': 'running', **current_metadata}
                 stream = None
                 error = None
                 deadline_timeout = False

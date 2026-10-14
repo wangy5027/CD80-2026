@@ -305,9 +305,16 @@ try {
     assert.match(body, /核心发现|重要不确定性|事件概述|时间线/);
     assert.match(body, /测试甲集团/);
     await testId('explore-sources').waitFor({ state: 'visible' });
-    assert.match(await testId('explore-sources').innerText(), /合成测试材料/);
-    assert.match(await testId('explore-sources').innerText(), /发布时间：.*检索时间：/s);
-    assert.ok(await testId('explore-sources').locator('a[href^="https://example.test/news/"]').count() >= 1);
+    await testId('explore-open-sources').click();
+    const reportSources = testId('explore-source-list');
+    await reportSources.waitFor({ state: 'visible' });
+    assert.match(await reportSources.innerText(), /合成测试材料/);
+    assert.match(await reportSources.innerText(), /发布时间：/);
+    assert.doesNotMatch(await reportSources.innerText(), /类型：|检索时间：/);
+    assert.equal(await reportSources.locator('.explore-source-preview .explore-source-number').count(), 0);
+    assert.ok(await reportSources.locator('.explore-source-preview h3 a[href^="https://example.test/news/"]').count() >= 1);
+    assert.equal(await reportSources.locator('.explore-source-preview > a, .explore-source-unavailable').count(), 0);
+    await testId('explore-materials-close').click();
     await testId('explore-open-materials').click();
     const confirmedDialog = testId('explore-materials');
     await confirmedDialog.waitFor({ state: 'visible' });
@@ -317,7 +324,10 @@ try {
     assert.ok(route().sessionId);
     await screenshot('03-event-report');
     await testId('explore-sources').scrollIntoViewIfNeeded();
+    await testId('explore-open-sources').click();
+    await testId('explore-source-list').waitFor({ state: 'visible' });
     await screenshot('03b-event-sources');
+    await testId('explore-materials-close').click();
     await page.locator('.explore-scroll').evaluate(element => { element.scrollTop = 0; });
     return { sessionId: route().sessionId, runId: first.id };
   });
@@ -343,12 +353,15 @@ try {
     assert.match(await retrieval.innerText(), /检索完成/);
     assert.ok((await retrieval.innerText()).includes(completed.query),
       'The actual submitted web query must be visible in the report.');
-    const sourceLabels = await testId('explore-sources').innerText();
-    for (const label of ['网页搜索', 'AkShare 快讯', '用户提供材料']) {
-      assert.ok(sourceLabels.includes(`类型：${label}`), `Missing visible source type: ${label}`);
-    }
-    assert.ok(await testId('explore-sources').locator('a[href^="https://example.test/web/"]').count() >= 1,
-      'A synthetic web-search result must appear as an actual source link.');
+    await testId('explore-open-sources').click();
+    const sourceList = testId('explore-source-list');
+    await sourceList.waitFor({ state: 'visible' });
+    const sourceLabels = await sourceList.innerText();
+    assert.match(sourceLabels, /发布时间：/);
+    assert.doesNotMatch(sourceLabels, /类型：|检索时间：/);
+    assert.ok(await sourceList.locator('.explore-source-preview h3 a[href^="https://example.test/web/"]').count() >= 1,
+      'A synthetic web-search result title must link to its original source.');
+    await testId('explore-materials-close').click();
     await retrieval.scrollIntoViewIfNeeded();
     await screenshot('03c-web-search-trace');
     return { searchAttempts: searches.length, webResults: completed.count, sourceKinds: [...kinds] };

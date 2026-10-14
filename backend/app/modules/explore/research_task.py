@@ -13,8 +13,23 @@ from urllib.parse import urlsplit, urlunsplit
 _URL = re.compile(r"https?://[^\s<>\"'‘’“”，。；;！？（）()\[\]{}]+", re.I)
 _DOI = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+", re.I)
 _ARTICLE_ID = re.compile(r"\bs\d{5}-\d{2,4}-\d{4,8}-[a-z0-9]+\b", re.I)
+_SEARCH_DOI = re.compile(r"(?<![a-z0-9])10\.\d{4,9}/[-._;()/:a-z0-9]+", re.I)
+_SEARCH_ARTICLE_ID = re.compile(r"(?<![a-z0-9])s\d{5}-\d{2,4}-\d{4,8}-[a-z0-9]+(?![a-z0-9])", re.I)
 _MODEL = re.compile(r"(?<![a-z0-9])[a-z]{1,8}[- ]?\d{2,8}(?:-[a-z0-9]+)*(?![a-z0-9])", re.I)
+_SEARCH_MODEL = re.compile(r"(?<![a-z0-9])([a-z]{1,12})[- ]?(\d{1,8})(?![a-z0-9])", re.I)
 _LATIN = re.compile(r"\b[a-z][a-z0-9.-]{2,}\b", re.I)
+_SEARCH_INDEX_PATTERNS = {
+    "沪深300": re.compile(r"沪深\s*300(?!\d)|(?<![a-z0-9])csi\s*300(?!\d)", re.I),
+    "上证50": re.compile(r"上证\s*50(?!\d)|(?<![a-z0-9])sse\s*50(?!\d)", re.I),
+    "中证500": re.compile(r"中证\s*500(?!\d)|(?<![a-z0-9])csi\s*500(?!\d)", re.I),
+    "中证1000": re.compile(r"中证\s*1000(?!\d)|(?<![a-z0-9])csi\s*1000(?!\d)", re.I),
+    "上证指数": re.compile(r"上证指数|上证综指|沪指"),
+    "深证成指": re.compile(r"深证成指|深成指"),
+    "创业板指": re.compile(r"创业板指(?:数)?"),
+    "国证A指": re.compile(r"国证a指|国证a股指数", re.I),
+}
+_SEARCH_NUMERIC_INDEX = re.compile(r"(沪深|上证|中证)\s*(\d{2,4})(?!\d)")
+_SEARCH_LATIN_INDEX = re.compile(r"(?<![a-z0-9])(csi|sse)\s*(\d{2,4})(?!\d)", re.I)
 _GENERIC = re.compile(
     r"^(?:请|帮我|想|我想|研究|分析|理解|验证|梳理|核查|看一下|研究一下|一下|这个|该|上述|这条|这篇|文章|事件|新闻|材料|的|关于|及其|其)+"
 )
@@ -309,3 +324,73 @@ def qualified_source(question, item):
     if not words and _BROAD_NEWS.fullmatch(str(question or "").strip()):
         return bool(str(item.get("title") or item.get("summary") or "").strip())
     return relevance(item, words) > 0
+
+
+def _search_model_codes(text):
+    return {(match.group(1).casefold(), match.group(2).lstrip("0") or "0")
+            for match in _SEARCH_MODEL.finditer(str(text or ""))}
+
+
+def _search_indices(text):
+    text = str(text or "")
+    found = {name for name, pattern in _SEARCH_INDEX_PATTERNS.items() if pattern.search(text)}
+    found.update(f"{family}{number}" for family, number in _SEARCH_NUMERIC_INDEX.findall(text))
+    for family, number in _SEARCH_LATIN_INDEX.findall(text):
+        found.add({"csi300": "沪深300", "csi500": "中证500", "csi1000": "中证1000",
+                   "sse50": "上证50"}.get(family.casefold() + number,
+                                               family.casefold() + number))
+    return found
+
+
+def _search_result_text(item):
+    return " ".join(str(item.get(key) or "") for key in ("title", "summary", "snippet"))
+
+
+def search_result_acceptable(question, item):
+    """Keep search leads unless their visible identity clearly contradicts the query.
+
+    Missing subject or event words in a short snippet are not evidence that the
+    linked page is irrelevant. Source trust and factual support are checked
+    after reading; URL and time validation remain with the caller.
+    """
+    if not isinstance(item, dict):
+        return False
+    text = _search_result_text(item)
+    identity_text = (text + " " + str(item.get("url") or "")).casefold()
+    requested_documents = {value.casefold() for value in
+                           [*_SEARCH_DOI.findall(str(question or "")),
+                            *_SEARCH_ARTICLE_ID.findall(str(question or ""))]}
+    if requested_documents:
+        # A precise DOI/article ID is an identity request, not a soft keyword.
+        return any(value in identity_text for value in requested_documents)
+
+    requested_models = _search_model_codes(question)
+    found_models = _search_model_codes(text)
+    if requested_models and found_models and not (requested_models & found_models):
+        requested_families = {family for family, _number in requested_models}
+        found_families = {family for family, _number in found_models}
+        if requested_families & found_families:
+            return False
+
+    requested_indices = _search_indices(question)
+    found_indices = _search_indices(text)
+    if requested_indices and found_indices and not (requested_indices & found_indices):
+        return False
+    return True
+
+
+def search_result_score(question, item):
+    """Rank accepted search leads without turning missing keywords into a veto."""
+    if not isinstance(item, dict):
+        return 0
+    title = str(item.get("title") or "").casefold()
+    summary = " ".join(str(item.get(key) or "") for key in ("summary", "snippet")).casefold()
+    score = sum((4 if word in title else 0) + (2 if word in summary else 0)
+                for word in keywords(question))
+    requested_models = _search_model_codes(question)
+    found_models = _search_model_codes(title + " " + summary)
+    score += 12 * len(requested_models & found_models)
+    score += 12 * len(_search_indices(question) & _search_indices(title + " " + summary))
+    if _direct_url_match(question, item):
+        score += 100
+    return score

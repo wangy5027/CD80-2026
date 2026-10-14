@@ -50,6 +50,8 @@ class Config:
     EXPLORE_NEWS_WINDOW = int(os.environ.get("EXPLORE_NEWS_WINDOW", "100"))
     EXPLORE_MODEL_MAX_TOKENS = int(os.environ.get("EXPLORE_MODEL_MAX_TOKENS", "8192"))
     EXPLORE_MODEL_REASONING_EFFORT = os.environ.get("EXPLORE_MODEL_REASONING_EFFORT", "low")
+    # Relation selection/report can use a separate model without changing other workflows.
+    EXPLORE_RELATION_MODEL = os.environ.get("EXPLORE_RELATION_MODEL", "GLM-5.3-Flash")
 
     EXPLORE_PUBLIC_DNS_MODE = os.environ.get("EXPLORE_PUBLIC_DNS_MODE", "system")
     EXPLORE_PUBLIC_ENTRY_CATALOG = os.environ.get("EXPLORE_PUBLIC_ENTRY_CATALOG", "[]")

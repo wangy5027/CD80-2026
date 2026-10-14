@@ -16,16 +16,29 @@ from ..workbench.errors import GatewayError
 from ..workbench.graph_runtime import GiteeProvider
 from ..workbench.tool_registry import ToolContext
 from ..workbench.skills import SkillRegistry
-from .research_task import build_research_task, search_queries, keywords, relevance, qualified_source
+from .research_task import (build_research_task, search_queries, keywords, relevance,
+                            qualified_source, search_result_acceptable, search_result_score)
 from .contracts import (MAX_QUESTION, MAX_SOURCES, MODULES, PROMPT_VERSIONS,
                         explicit_judgment, historical_source_ids, nonempty,
                         parse_json_object, proposed_judgment, render_markdown,
                         safe_url, validate_intent, validate_model_report)
 from .repository import ACTIVE, TERMINAL, ExploreRepository, MAX_CONTEXT_FILES, timestamp, uid
 from .public_entries import parse_entry_catalog, entries_for_question
+from .memory_context import MEMORY_INSTRUCTION, inject_memory_payload, memory_trace
+from .event_report_json import parse_event_report_json
 
 
 LOG = logging.getLogger(__name__)
+EVENT_INITIAL_TIMEOUT_SECONDS = 23.0
+RELATION_RUN_TIMEOUT_SECONDS = 90.0
+# Socket/header idle waits; the run watchdog also bounds continuously streaming replies.
+RELATION_MODEL_WAIT_SECONDS = {
+    "relation_select": 20.0,
+    "relation_lite_report": 45.0,
+}
+HISTORY_RUN_TIMEOUT_SECONDS = 90.0
+HISTORY_MODEL_WAIT_SECONDS = {"history_initial": 20.0, "history_lite_report": 45.0}
+EXPLORE_MODEL_CHOICES = frozenset({"GLM-5.3-Flash", "GLM-5.3"})
 
 
 def event_brief_issues(raw):
@@ -132,7 +145,13 @@ class ExploreService:
         self.provider = provider or GiteeProvider({**config,
             "GITEE_AI_MAX_TOKENS": config.get("EXPLORE_MODEL_MAX_TOKENS", 8192),
             "GITEE_AI_REASONING_EFFORT": config.get("EXPLORE_MODEL_REASONING_EFFORT", "low")})
+        self.relation_model = str(config.get("EXPLORE_RELATION_MODEL") or "GLM-5.3-Flash").strip() or "GLM-5.3-Flash"
         self.testing = bool(config.get("TESTING"))
+        # Existing test fixtures exercise the original workflow unless they
+        # explicitly opt into the two-step event path.
+        self.event_lite_enabled = bool(config.get("EXPLORE_EVENT_LITE_ENABLED", not self.testing))
+        self.relation_lite_enabled = bool(config.get("EXPLORE_RELATION_LITE_ENABLED", not self.testing))
+        self.history_lite_enabled = bool(config.get("EXPLORE_HISTORY_LITE_ENABLED", not self.testing))
         if not self.legacy_fixture and not callable(getattr(self.provider, "events", None)):
             raise ValueError("Explore 需要支持 events/tool calls 的 Provider。")
         self.public_dns_mode = config.get("EXPLORE_PUBLIC_DNS_MODE", "system")
@@ -207,8 +226,10 @@ class ExploreService:
     def create_run(self, owner, session_id, body, *, retry_of=None, previous=None):
         if not isinstance(body, dict):
             raise GatewayError("请求格式不正确。", 400)
-        if set(body) - {"module", "question", "source_report_id", "idempotency_key", "context_mode", "file_ids"}:
+        if set(body) - {"module", "question", "source_report_id", "source_run_id", "idempotency_key", "context_mode", "file_ids", "model"}:
             raise GatewayError("本轮只支持当前研究时点；请求包含不支持的参数。", 400, "explore_unsupported_parameter")
+        if "model" in body and (not isinstance(body["model"], str) or body["model"] not in EXPLORE_MODEL_CHOICES):
+            raise GatewayError("请选择支持的探索模型。", 400, "explore_invalid_model")
         module = body.get("module")
         if not isinstance(module, str) or module not in MODULES:
             raise GatewayError("请选择理解事件、发现关联或历史验证。", 400)
@@ -219,6 +240,9 @@ class ExploreService:
         if source is not None and not isinstance(source, str):
             raise GatewayError("来源报告标识不正确。", 400)
         source = source or None
+        source_run = body.get("source_run_id")
+        if source_run is not None and (not isinstance(source_run, str) or not source_run):
+            raise GatewayError("来源研究记录标识不正确。", 400)
         key = self._validate_key(body.get("idempotency_key"))
         selection_override = None
         if "context_mode" in body or "file_ids" in body:
@@ -235,10 +259,12 @@ class ExploreService:
         judgment = _judgment(resolved or question) if module == "history" else None
         stage = "queued"
         request = {"session_id": session_id, "module": module, "question": question,
-                   "source_report_id": source, "retry_of": retry_of, "idempotency_key": key,
+                   "source_report_id": source, "source_run_id": source_run,
+                   "retry_of": retry_of, "idempotency_key": key,
                    "context_override": selection_override}
         run = {"id": uid(), "session_id": session_id, "module": module, "question": question,
-               "source_report_id": source, "retry_of": retry_of, "status": stage, "stage": stage,
+               "source_report_id": source, "source_run_id": source_run,
+               "retry_of": retry_of, "status": stage, "stage": stage,
                "authorized_public_urls": entries_for_question(self.public_entry_catalog, resolved or question),
                "stage_history": [{"stage": stage, "at": now}], "created_at": now, "updated_at": now,
                "time_policy": {"mode": "current_research", "as_of": now,
@@ -251,11 +277,63 @@ class ExploreService:
                "materials": [], "retrieval": {}, "review": None, "review_revision": 0,
                "confirmed_sources": [], "phase": "prepare", "skip_intent": False,
                "pre_report_limitations": [], "model_progress": None, "execution_id": uid(), "error": None}
+        if "model" in body:
+            # Keep legacy requests unchanged; only an explicit selection enters
+            # the idempotency signature and this run's frozen model choice.
+            request["model"] = body["model"]
+            run["model"] = body["model"]
+        if module == "event" and getattr(self, "event_lite_enabled", False) and not self.legacy_fixture:
+            run.update(workflow_version="event-lite@1", prompt_version="event-lite@1",
+                       phase="initial_explanation", initial_answer=None, feedback_choice=None)
+        elif module == "relation" and self.relation_lite_enabled and not self.legacy_fixture:
+            run.update(workflow_version="relation-lite@2", prompt_version="relation-lite@2",
+                       phase="relation_select")
+        elif module == "history" and self.history_lite_enabled and not self.legacy_fixture:
+            run.update(workflow_version="history-lite@1", prompt_version="history-lite@1",
+                       phase="history_initial", initial_answer=None)
         saved, created = self.repository.create_run(owner, request, run, self.max_concurrent,
                                                      selection_override=selection_override)
         if created:
             self._start(owner, saved["id"], session_id)
         return saved
+
+    def feedback(self, owner, run_id, body):
+        if not isinstance(body, dict) or set(body) != {"choice", "idempotency_key"}:
+            raise GatewayError("请选择一个后续操作。", 400)
+        choice = body.get("choice")
+        if not isinstance(choice, str) or choice not in {"understood", "explain_more"}:
+            raise GatewayError("反馈选项无效。", 400)
+        key = self._validate_key(body.get("idempotency_key"))
+
+        def mutate(run):
+            if (run.get("module") != "event" or run.get("workflow_version") != "event-lite@1"
+                    or run.get("status") != "awaiting_feedback" or not run.get("initial_answer")):
+                raise GatewayError("本轮已处理该选择，请刷新查看结果。", 409, "explore_stale_feedback")
+            run["feedback_choice"] = choice
+            if choice == "understood":
+                run.update(status="succeeded", stage="completed", phase="done", model_progress=None,
+                           next_step_state="finished")
+            else:
+                run.update(status="queued", stage="queued", phase="event_deep_report",
+                           execution_id=uid(), model_progress=None, error=None)
+
+        saved, created = self.repository.apply_review_action(
+            owner, run_id, "event_feedback", key, {"choice": choice}, mutate, self.max_concurrent)
+        if created and choice == "explain_more":
+            self._start(owner, run_id, saved["session_id"])
+        return self.repository.get_run(owner, run_id)
+
+    def finish(self, owner, run_id, body):
+        if not isinstance(body, dict) or set(body) != {"idempotency_key"}:
+            raise GatewayError("结束请求格式不正确。", 400)
+        key = self._validate_key(body.get("idempotency_key"))
+        run, session = self.repository.finish_event(owner, run_id, key)
+        with self._lock:
+            controls = [control for (run_owner, _), control in self._active.items()
+                        if run_owner == owner and control["session_id"] == run["session_id"]]
+        for control in controls:
+            self._stop(control)
+        return run, session
 
     def clarify(self, owner, run_id, body):
         if not isinstance(body, dict) or set(body) != {"idempotency_key", "revision", "question"} and set(body) != {"idempotency_key", "revision", "option_id"}:
@@ -290,6 +368,8 @@ class ExploreService:
                        authorized_public_urls=entries_for_question(self.public_entry_catalog, resolved),
                        review=None, confirmed_sources=[], skip_intent=direct, model_progress=None,
                        pre_report_limitations=[], error=None)
+            if run.get("workflow_version") == "relation-lite@2":
+                run.update(prompt_version="relation-lite@2", phase="relation_select")
 
         saved, created = self.repository.apply_review_action(owner, run_id, "clarify", key,
                                                                 {name: value for name, value in body.items() if name != "idempotency_key"},
@@ -324,6 +404,9 @@ class ExploreService:
                        authorized_public_urls=entries_for_question(self.public_entry_catalog, resolved),
                        judgment=_judgment(resolved) if run["module"] == "history" else None,
                        confirmed_sources=[item for item in run["materials"] if item["id"] in ids], error=None)
+            if run.get("workflow_version") == "relation-lite@2":
+                run.update(prompt_version="relation-lite@2", phase="relation_select",
+                           confirmed_sources=[])
 
         saved, created = self.repository.apply_review_action(owner, run_id, "confirm", key,
                                                                 {"revision": revision, "source_ids": ids},
@@ -353,7 +436,7 @@ class ExploreService:
         existing = self.repository.get_run(owner, run_id)
         if existing["status"] in TERMINAL:
             return existing
-        updated = self.repository.transition(owner, run_id, {"awaiting_input", "awaiting_clarification", "awaiting_review", "queued", "running"},
+        updated = self.repository.transition(owner, run_id, {"awaiting_input", "awaiting_clarification", "awaiting_review", "awaiting_feedback", "queued", "running"},
                                              status="cancelled", stage="cancelled",
                                              error="已停止本次分析；迟到的结果不会保存。",
                                              fields={"materials": [], "retrieval": {}, "review": None,
@@ -373,7 +456,10 @@ class ExploreService:
         request = {
             "module": old["module"], "question": old["question"],
             "source_report_id": old.get("source_report_id"),
+            "source_run_id": old.get("source_run_id"),
             "idempotency_key": body.get("idempotency_key")}
+        if "model" in old:
+            request["model"] = old["model"]
         for key in ("context_mode", "file_ids"):
             if key in body:
                 request[key] = body[key]
@@ -383,7 +469,10 @@ class ExploreService:
         run = self.repository.get_run(owner, run_id)
         control = {"stop": threading.Event(), "timed_out": threading.Event(), "response": None,
                    "session_id": session_id, "execution_id": run.get("execution_id"),
-                   "owner": owner, "run_id": run_id, "model_transport_trace": []}
+                   "owner": owner, "run_id": run_id, "model": run.get("model"),
+                   "model_transport_trace": [],
+                   "memory_input": copy.deepcopy(run.get("memory_input")),
+                   "model_memory_trace": copy.deepcopy(run.get("model_memory_trace") or [])}
         with self._lock:
             if self._closed:
                 self.repository.transition(owner, run_id, ACTIVE, status="interrupted", stage="interrupted",
@@ -451,6 +540,11 @@ class ExploreService:
                 raw_sources = result.sources or []
                 if len(raw_sources) > 5:
                     raw_sources = raw_sources[:5]
+                # A targeted search result remains a lead when its short
+                # snippet omits query words. Rank such leads behind stronger
+                # matches, and reject only an explicit identity conflict.
+                raw_sources = sorted(raw_sources, key=lambda item: search_result_score(
+                    arguments["query"], item), reverse=True)
                 usable, local_seen = 0, set()
                 for item in raw_sources:
                     if not isinstance(item, dict):
@@ -462,6 +556,8 @@ class ExploreService:
                     published = item.get("publishedAt")
                     date = _dt(published) if published else None
                     if published and (date is None or date > _dt(run["time_policy"]["as_of"])):
+                        continue
+                    if not search_result_acceptable(arguments["query"], item):
                         continue
                     identity = url.split("#", 1)[0]
                     if identity in local_seen:
@@ -651,6 +747,8 @@ class ExploreService:
     def _reserve_model_retry(self, control, error, deadline, stage):
         """One transport retry for the whole run; never extend its deadline."""
         self._check_stop(control)
+        if stage in RELATION_MODEL_WAIT_SECONDS or stage in HISTORY_MODEL_WAIT_SECONDS:
+            return False
         transient = {'model_connect_timeout', 'model_header_timeout', 'model_request_timeout',
                      'model_stream_timeout', 'model_stream_interrupted', 'model_connection_failed'}
         if (error.code not in transient or control.get('model_retries')
@@ -669,7 +767,36 @@ class ExploreService:
         control['model_retries'] = retries
         return True
 
+    def _memory_for_model(self, control, stage):
+        """Resolve the frozen chain memory before every request, including retries."""
+        self._check_stop(control)
+        snapshot = control.get("memory_input")
+        if control.get("owner") and control.get("run_id"):
+            snapshot = self.repository.validate_memory(
+                control["owner"], control["run_id"], execution_id=control.get("execution_id"))
+        control["memory_input"] = copy.deepcopy(snapshot)
+        try:
+            metadata = memory_trace(snapshot)
+        except (ValueError, TypeError):
+            raise GatewayError("研究记忆无效，请重新读取研究记录。", 409,
+                               "explore_memory_invalid") from None
+        record = {"stage": stage, "at": timestamp(), **metadata}
+        records = control.setdefault("model_memory_trace", [])
+        records.append(record)
+        if control.get("owner") and control.get("run_id"):
+            saved = self.repository.transition(
+                control["owner"], control["run_id"], ACTIVE,
+                execution_id=control.get("execution_id"),
+                fields={"model_memory_trace": copy.deepcopy(records)})
+            if saved is None:
+                self._stop(control)
+                raise GatewayError("本次分析已停止。", 409, "explore_cancelled")
+        return snapshot
+
     def _invoke_model_once(self, payload, prompt, control, on_progress=None):
+        snapshot = self._memory_for_model(control, payload.get("stage") or payload.get("task") or "model")
+        payload = inject_memory_payload(payload, snapshot)
+        prompt = prompt + "\n" + MEMORY_INSTRUCTION
         if payload.get("task") == "research_report" and callable(control.get("evidence_guard")):
             control["evidence_guard"]()
         control["writer_model_calls"] = control.get("writer_model_calls", 0) + int(payload.get("task") == "research_report")
@@ -684,7 +811,13 @@ class ExploreService:
             if control["stop"].is_set() and response is not None:
                 response.abort()
 
-        provider = self._provider_for_deadline(control.get('deadline'))
+        provider = self._provider_for_run(control.get('deadline'), control,
+                                          payload.get('stage') or payload.get('task'))
+        model_wait = {**RELATION_MODEL_WAIT_SECONDS, **HISTORY_MODEL_WAIT_SECONDS}.get(payload.get('stage'))
+        if isinstance(provider, GiteeProvider) and model_wait is not None:
+            # _provider_for_deadline returns a copy, leaving other workflows unchanged.
+            provider.connect_timeout = min(provider.connect_timeout, 3.0)
+            provider.read_timeout = min(provider.read_timeout, model_wait)
         if payload.get('stage') == 'claim_review' and isinstance(provider, GiteeProvider):
             provider.request_options = {**provider.request_options,
                 'max_tokens': min(int(provider.request_options.get('max_tokens', 4096)), 4096)}
@@ -720,11 +853,20 @@ class ExploreService:
             if stream is not None and callable(getattr(stream, "close", None)):
                 stream.close()
             control["response"] = None
+        if payload.get("stage") in {"event_deep_lite", "history_lite_report"}:
+            control.pop("report_json_repairs", None)
+            result, repairs = parse_event_report_json("".join(parts))
+            if repairs:
+                control["report_json_repairs"] = repairs
+            return result
         return parse_json_object("".join(parts))
 
     def _model_transport_observer(self, control, stage):
         records = control.setdefault('model_transport_trace', [])
         record = {'request': len(records) + 1, 'stage': stage}
+        if control.get("model_memory_trace"):
+            record["memory"] = {key: value for key, value in control["model_memory_trace"][-1].items()
+                                if key.startswith("memory_")}
         records.append(record)
         def update(metadata):
             record.update(metadata)
@@ -743,6 +885,25 @@ class ExploreService:
                 remaining = max(0.1, deadline - time.monotonic())
                 provider.connect_timeout = min(provider.connect_timeout, remaining / 4)
                 provider.read_timeout = min(provider.read_timeout, remaining - provider.connect_timeout)
+        return provider
+
+    def _provider_for_run(self, deadline, control, stage):
+        """Apply a frozen run choice only to this request's Gitee adapter copy."""
+        provider = self._provider_for_deadline(deadline)
+        if isinstance(provider, GiteeProvider):
+            selected = control.get("model")
+            if selected is not None:
+                if not isinstance(selected, str) or selected not in EXPLORE_MODEL_CHOICES:
+                    raise GatewayError("探索模型选择无效。", 409, "explore_invalid_model")
+                provider.model = selected
+            elif stage in RELATION_MODEL_WAIT_SECONDS:
+                provider.model = getattr(self, "relation_model", "GLM-5.3-Flash")
+            if stage in HISTORY_MODEL_WAIT_SECONDS:
+                provider.connect_timeout = min(provider.connect_timeout, 3.0)
+                provider.read_timeout = min(provider.read_timeout, HISTORY_MODEL_WAIT_SECONDS[stage])
+                provider.request_options = {**provider.request_options, "reasoning_effort": "low",
+                    "max_tokens": min(int(provider.request_options.get("max_tokens", 8192)),
+                                      600 if stage == "history_initial" else 3000)}
         return provider
 
     def _model(self, run, sources, historical_ids, retrieval, control, on_progress=None):
@@ -1225,23 +1386,72 @@ reject也给全字段，text/type可沿用原值，support_indices/question_ids�
             return False
 
     def _execute(self, owner, run_id, control):
-        control["deadline"] = time.monotonic() + self.timeout
         completion_lock = threading.RLock()
-        def expire():
-            with completion_lock:
-                control["timed_out"].set()
-                if not self._complete_checkpoint(owner, run_id, control, 'explore_run_timeout'):
-                    self.repository.transition(owner, run_id, ACTIVE, status="failed", stage="failed",
-                                               execution_id=control["execution_id"],
-                                               error="本次研究超过执行时间上限。", fields={"error_code": "explore_run_timeout"})
-                self._stop(control)
-
-        timer = threading.Timer(self.timeout, expire)
-        timer.daemon = True
-        timer.start()
+        timer = None
+        timeout_message = "本次研究超过执行时间上限。"
         try:
             run = self.repository.get_run(owner, run_id)
-            if run.get("phase") == "report":
+            event_initial = (run.get("workflow_version") == "event-lite@1" and
+                             run.get("phase") == "initial_explanation")
+            run_timeout = min(self.timeout, EVENT_INITIAL_TIMEOUT_SECONDS) if event_initial else self.timeout
+            if run.get("workflow_version") == "relation-lite@2":
+                run_timeout = min(run_timeout, RELATION_RUN_TIMEOUT_SECONDS)
+            elif run.get("workflow_version") == "history-lite@1":
+                run_timeout = min(run_timeout, HISTORY_RUN_TIMEOUT_SECONDS)
+            if event_initial:
+                timeout_message = "首次解释未能保存，请重试。"
+            control["run_timeout_seconds"] = run_timeout
+            control["deadline"] = time.monotonic() + run_timeout
+
+            def expire():
+                with completion_lock:
+                    if event_initial:
+                        # Both the full answer and a fallback use the same CAS publish.
+                        try:
+                            live = self.repository.get_run(owner, run_id)
+                        except GatewayError as exc:
+                            if exc.status == 404:
+                                return
+                            raise
+                        if live["status"] not in ACTIVE or live.get("execution_id") != control["execution_id"]:
+                            return
+                        fallback = control.get("event_initial_timeout")
+                        if callable(fallback):
+                            try:
+                                if fallback():
+                                    control["timed_out"].set()
+                                    self._stop(control)
+                                    return
+                            except Exception:
+                                LOG.exception("Explore first explanation fallback failed: %s", run_id)
+                        failed = self.repository.transition(owner, run_id, ACTIVE,
+                            status="failed", stage="failed", execution_id=control["execution_id"],
+                            error=timeout_message, fields={"error_code": "explore_run_timeout"})
+                        if failed is None:
+                            return
+                        control["timed_out"].set()
+                    else:
+                        control["timed_out"].set()
+                        if not self._complete_checkpoint(owner, run_id, control, 'explore_run_timeout'):
+                            self.repository.transition(owner, run_id, ACTIVE, status="failed", stage="failed",
+                                                       execution_id=control["execution_id"],
+                                                       error=timeout_message,
+                                                       fields={"error_code": "explore_run_timeout"})
+                    self._stop(control)
+
+            timer = threading.Timer(run_timeout, expire)
+            timer.daemon = True
+            timer.start()
+            if run.get("workflow_version") == "event-lite@1":
+                from .event_lite_runtime import EventLiteRuntime
+                EventLiteRuntime(self, owner, run, control).execute()
+            elif run.get("workflow_version") == "relation-lite@2":
+                from .relation_lite_runtime import RelationLiteRuntime
+                RelationLiteRuntime(self, owner, run, control).execute()
+            elif run.get("workflow_version") == "history-lite@1":
+                from .history_lite_runtime import HistoryLiteRuntime
+                HistoryLiteRuntime(self, owner, run, control).execute()
+            elif run.get("phase") == "report":
                 self._report(owner, run_id, control)
             else:
                 self._prepare(owner, run_id, control)
@@ -1253,7 +1463,7 @@ reject也给全字段，text/type可沿用原值，support_indices/question_ids�
                     if self._complete_checkpoint(owner, run_id, control, exc.code):
                         return
                 if control["timed_out"].is_set():
-                    message = "本次研究超过执行时间上限。"
+                    message = timeout_message
                 else:
                     message = str(exc)
                 self.repository.transition(owner, run_id, ACTIVE, status="failed", stage="failed", error=message,
@@ -1265,7 +1475,8 @@ reject也给全字段，text/type可沿用原值，support_indices/question_ids�
                                        execution_id=control["execution_id"],
                                        error="研究执行失败，请重试；本次未保存报告。")
         finally:
-            timer.cancel()
+            if timer is not None:
+                timer.cancel()
             with self._lock:
                 if self._active.get((owner, run_id)) is control:
                     self._active.pop((owner, run_id), None)

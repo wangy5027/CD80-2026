@@ -1,8 +1,15 @@
 export const modules = Object.freeze([
   { id: 'event', title: '理解事件', description: '梳理发生了什么、背景与可能的影响路径。', example: '最近的半导体产业政策发生了什么变化？主要影响路径是什么？' },
   { id: 'relation', title: '发现关联', description: '追踪主体之间有方向、有条件的研究线索。', example: '这项政策可能通过哪些环节影响 A 股半导体产业链？' },
-  { id: 'history', title: '历史验证', description: '先明确判断，再与可取得的历史材料对照。', example: '过去类似政策发布后，产业链预期改善的判断在什么条件下成立？' },
+  { id: 'history', title: '历史验证', description: '分析主体与关联主体的历史联系，并结合历史新闻理解当前关系。', example: '这家公司和关联主体的当前联系，可能受到哪些历史事件影响？' },
 ]);
+
+export const exploreModels = Object.freeze([
+  { id: 'GLM-5.3-Flash', label: 'GLM-5.3-Flash', description: '响应更快' },
+  { id: 'GLM-5.3', label: 'GLM-5.3', description: '完整模型' },
+]);
+export const defaultExploreModel = exploreModels[0].id;
+export const validExploreModel = value => exploreModels.some(model => model.id === value);
 
 export const moduleTitle = id => modules.find(item => item.id === id)?.title || '探索分析';
 export const maxContextFiles = 8;
@@ -24,8 +31,35 @@ export const fileKindLabel = kind => ({ material: '材料', report: '报告' })[
 export const fileOriginLabel = origin => ({ web_search: '网页搜索', news: 'AkShare 快讯', public_page: '公开网页', structured_data: '结构化数据', tool_result: '研究工具', user: '用户提供', report: '研究报告' })[origin] || '来源未标明';
 export const contextFiles = run => Array.isArray(run?.context_files) ? run.context_files.filter(item => item && typeof item === 'object') : [];
 export const activeRun = run => ['queued', 'running'].includes(run?.status);
+export const feedbackRun = run => run?.module === 'event' && run?.status === 'awaiting_feedback' && Boolean(String(run?.initial_answer || '').trim());
+export const isHistoryLiteRun = run => run?.module === 'history' && String(run?.workflow_version || '').startsWith('history-lite@');
 export const reviewRun = run => ['awaiting_clarification', 'awaiting_review'].includes(run?.status);
 export const terminalRun = run => ['succeeded', 'partial', 'failed', 'cancelled', 'interrupted'].includes(run?.status);
+
+// First-step searches inform the short answer but are not a user-facing source list.
+// An understood historical run moves to phase "done" without a deep report.
+export function isEventInitial(run) {
+  if (run?.module !== 'event' || !String(run?.workflow_version || '').startsWith('event-lite@') || run?.report) return false;
+  return run.phase === 'initial_explanation' ||
+    (Boolean(String(run.initial_answer || '').trim()) && run.feedback_choice !== 'explain_more' && run.phase !== 'event_deep_report');
+}
+
+export function visibleRunMaterials(run) {
+  return isEventInitial(run) ? [] : runMaterials(run);
+}
+
+export function visibleNewFiles(files, run) {
+  const rows = Array.isArray(files) ? files.filter(file => file && typeof file === 'object') : [];
+  if (!isEventInitial(run)) return rows;
+  const fileIds = new Set(Object.values(run.initial_file_ids || {}).map(String));
+  return rows.filter(file => fileIds.has(String(file.id)) ||
+    (String(file.source_run_id) === String(run.id) && file.phase === 'initial_explanation' && file.source_id == null &&
+      ((file.kind === 'material' && file.origin === 'user') || (file.kind === 'report' && file.origin === 'report'))));
+}
+
+export function eventInitialProgressLabel(run) {
+  return run?.stage === 'explaining' || run?.model_progress ? '正在回复' : '正在探索';
+}
 
 export function parseExploreHash(hash = '') {
   const match = /^#explore(?:\?([^#]*))?$/.exec(String(hash));
@@ -52,7 +86,8 @@ export function runTree(runs) {
   const children = new Map();
   const roots = [];
   for (const { run } of ordered) {
-    const parentId = byReport.get(String(run.source_report_id || ''));
+    const parentId = byReport.get(String(run.source_report_id || '')) ||
+      (ordered.some(item => String(item.run.id) === String(run.source_run_id || '')) ? String(run.source_run_id) : '');
     if (!parentId || parentId === String(run.id)) roots.push(run);
     else {
       if (!children.has(parentId)) children.set(parentId, []);
@@ -125,5 +160,5 @@ export function sourceLabel(source) {
 }
 
 export function stageLabel(stage) {
-  return ({ queued: '已受理', searching_web: '正在联网搜索', retrieving_news: '正在检索新闻材料', checking_intent: '正在核对研究问题', awaiting_clarification: '等待明确问题', awaiting_review: '等待确认材料', awaiting_input: '等待确认判断', preparing_report: '准备生成报告', analyzing: '正在调用模型分析', validating: '正在校验报告与来源', saving: '正在保存报告', completed: '已完成', failed: '执行失败', cancelled: '已取消', interrupted: '运行中断' })[stage] || stage || '等待服务端状态';
+  return ({ queued: '已受理', searching_web: '正在联网搜索', reading_pages: '正在读取新闻正文', retrieving_news: '正在检索新闻材料', explaining: '正在结合联网信息解释', checking_intent: '正在核对研究问题', awaiting_feedback: '等待反馈', awaiting_clarification: '等待明确问题', awaiting_review: '等待确认材料', awaiting_input: '等待确认判断', preparing_report: '准备生成报告', analyzing: '正在调用模型分析', validating: '正在校验报告与来源', saving: '正在保存报告', completed: '已完成', failed: '执行失败', cancelled: '已取消', interrupted: '运行中断' })[stage] || stage || '等待服务端状态';
 }

@@ -34,6 +34,7 @@ class WriterRetryTests(unittest.TestCase):
         service = ExploreService.__new__(ExploreService)
         service.provider = RetryProvider(attempts)
         service.repository = Mock()
+        service.repository.validate_memory.return_value = None
         control = {'stop': threading.Event(), 'timed_out': threading.Event(),
                    'deadline': time.monotonic() + 120, 'evidence_guard': Mock()}
         return service, control
@@ -122,7 +123,7 @@ class WriterRetryTests(unittest.TestCase):
     def test_execution_change_does_not_restart_request(self):
         service, control = self.service([[self.timeout()]])
         control.update(owner='fixture', run_id='fixture-run', execution_id='old-execution')
-        service.repository.transition.return_value = None
+        service.repository.transition.side_effect = [{}, None]
         with self.assertRaises(GatewayError) as caught:
             self.invoke(service, control)
         self.assertEqual(caught.exception.code, 'explore_cancelled')

@@ -1,12 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { eventBriefCoverageNote, isEventBrief } from './reportPresentation.js';
+import { eventBriefCoverageNote, isEventBrief, isLiteAnalysisReport, isLiteChoiceReport,
+  isHistoryLite, isRelationLite, liteAngleRecommendations, pendingLiteChoice } from './reportPresentation.js';
 
 test('only the explicit event brief format uses the short first-step report', () => {
   assert.equal(isEventBrief({ report_format: 'event_brief@1', module: 'event' }), true);
   assert.equal(isEventBrief({ module: 'event' }), false);
   assert.equal(isEventBrief({ report_format: 'event_brief@1', module: 'relation' }), false);
   assert.equal(isEventBrief(null), false);
+});
+
+test('the final choice belongs to current event, relation, and history lite reports', () => {
+  const recommendations = [
+    { module: 'history', question: '历史上如何验证？' },
+    { module: 'relation', question: '还有哪些关联？' },
+    { module: 'event', question: '事件还有哪些条件？' },
+  ];
+  const relation = { module: 'relation', report_format: 'relation_lite@2', recommendations };
+  assert.equal(isRelationLite(relation), true);
+  assert.equal(isLiteChoiceReport(relation), true);
+  assert.equal(isLiteAnalysisReport(relation), true);
+  assert.deepEqual(liteAngleRecommendations(relation).map(item => item.module), ['event', 'relation', 'history']);
+  assert.equal(pendingLiteChoice({ report: relation, next_step_state: 'pending' }), true);
+  assert.equal(pendingLiteChoice({ report: relation, next_step_state: 'continued' }), false);
+  assert.equal(pendingLiteChoice({ report: relation, next_step_state: 'finished' }), false);
+  assert.deepEqual(liteAngleRecommendations({ ...relation, recommendations: recommendations.slice(0, 2) }), []);
+  assert.deepEqual(liteAngleRecommendations({ ...relation, recommendations: [recommendations[0], recommendations[0], recommendations[2]] }), []);
+  assert.equal(isLiteChoiceReport({ module: 'relation', report_format: 'relation_lite@1' }), false);
+  assert.equal(isLiteAnalysisReport({ module: 'relation', report_format: 'relation_lite@1' }), true);
+  assert.equal(isLiteAnalysisReport({ module: 'event', report_format: 'event_deep_lite@1' }), true);
+  assert.equal(isLiteChoiceReport({ module: 'history', report_format: 'relation_lite@2' }), false);
+  const history = { module: 'history', report_format: 'history_lite@1', recommendations };
+  assert.equal(isHistoryLite(history), true);
+  assert.equal(isLiteChoiceReport(history), true);
+  assert.equal(isLiteAnalysisReport(history), true);
+  assert.deepEqual(liteAngleRecommendations(history).map(item => item.module), ['event', 'relation', 'history']);
+  assert.equal(pendingLiteChoice({ report: history, next_step_state: 'pending' }), true);
+  assert.equal(isHistoryLite({ ...history, report_format: 'history_lite@2' }), false);
 });
 
 test('brief keeps all actual unresolved gaps by the core findings without duplicating them', () => {

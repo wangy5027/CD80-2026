@@ -1,9 +1,11 @@
 import { computed, onMounted, onUnmounted, reactive, watch } from 'vue';
 import * as api from './api.js';
-import { activeRun, contextRequest, exploreHash, maxContextFiles, normalizeContexts, parseExploreHash, reviewRun, runMaterials, runTree, terminalRun } from './model.js';
+import { activeRun, contextRequest, defaultExploreModel, exploreHash, feedbackRun, isEventInitial, isHistoryLiteRun, maxContextFiles, normalizeContexts, parseExploreHash, reviewRun, runMaterials, runTree, terminalRun, validExploreModel } from './model.js';
+import { isLiteChoiceReport, liteAngleRecommendations, pendingLiteChoice } from './reportPresentation.js';
 
 const pendingKey = ownerId => `ficagent-explore-pending:${ownerId}`;
 const historyKey = ownerId => `ficagent-explore-history:${ownerId}`;
+const modelKey = ownerId => `ficagent-explore-model:${ownerId}`;
 const pendingSignature = (kind, sessionId, body) => JSON.stringify([kind, String(sessionId), body]);
 
 function initialHistoryOpen(ownerId) {
@@ -11,9 +13,16 @@ function initialHistoryOpen(ownerId) {
   catch { return true; }
 }
 
+function initialModel(ownerId) {
+  try {
+    const saved = localStorage.getItem(modelKey(ownerId));
+    return validExploreModel(saved) ? saved : defaultExploreModel;
+  } catch { return defaultExploreModel; }
+}
+
 export function useExplore(ownerId) {
   const state = reactive({
-    sessions: [], session: null, runs: [], selectedRunId: '', module: 'event', draft: '', sourceReportId: '',
+    sessions: [], session: null, runs: [], selectedRunId: '', module: 'event', model: initialModel(ownerId), draft: '', sourceReportId: '',
     loading: true, loadingSession: false, submitting: false, actionBusy: false, error: '', actionError: '',
     renameOpen: false, renameDraft: '', renameSessionId: '', deleteOpen: false, deleteSessionId: '', deleteSessionTitle: '', sessionActionError: '', historyOpen: initialHistoryOpen(ownerId), judgment: '',
     reviewQuestion: '', selectedSourceIds: [],
@@ -28,7 +37,12 @@ export function useExplore(ownerId) {
   const currentContext = computed(() => state.contextDrafts[state.module] || { mode: 'auto', file_ids: [] });
   const contextDirty = computed(() => JSON.stringify(contextRequest(state.module, currentContext.value)) !== JSON.stringify(contextRequest(state.module, state.contexts[state.module])));
   const selectedContextFiles = computed(() => state.files.filter(file => currentContext.value.file_ids.includes(String(file.id))));
-  const canStartRun = computed(() => !state.loading && !state.loadingSession && state.contextLoaded && !state.contextLoading && !state.submitting && !state.actionBusy && !state.contextBusy && !state.fileBusy && !isActive.value);
+  const sessionClosed = computed(() => Boolean(state.session?.closed_at));
+  const canAct = computed(() => !state.loading && !state.loadingSession && state.contextLoaded && !state.contextLoading && !state.submitting && !state.actionBusy && !state.contextBusy && !state.fileBusy && !isActive.value && !sessionClosed.value);
+  const canStartRun = computed(() => canAct.value && selectedRun.value?.status !== 'awaiting_feedback' && !isLiteChoiceReport(selectedReport.value));
+  const canChooseLiteRecommendation = computed(() => canAct.value && pendingLiteChoice(selectedRun.value) && liteAngleRecommendations(selectedReport.value).length === 3);
+  const showComposer = computed(() => !sessionClosed.value && selectedRun.value?.status !== 'awaiting_feedback' &&
+    !(isActive.value && (isEventInitial(selectedRun.value) || isHistoryLiteRun(selectedRun.value))) && !isLiteChoiceReport(selectedReport.value));
   const canSubmit = computed(() => Boolean(state.draft.trim()) && canStartRun.value);
   const requestControllers = new Set();
   let mounted = true;
@@ -54,6 +68,14 @@ export function useExplore(ownerId) {
     catch { /* A blocked preference store must not block navigation. */ }
   }
 
+  function setModel(model) {
+    if (state.submitting || !validExploreModel(model)) return false;
+    state.model = model;
+    try { localStorage.setItem(modelKey(ownerId), model); }
+    catch { /* A blocked preference store must not block research. */ }
+    return true;
+  }
+
   function resetSessionAction() {
     sessionActionEpoch += 1;
     state.renameOpen = false;
@@ -72,12 +94,12 @@ export function useExplore(ownerId) {
   function listedSession(session = state.session) {
     if (!session?.id) return null;
     const id = String(session.id);
-    return state.sessions.find(item => String(item.id) === id)
-      || (String(state.session?.id) === id ? state.session : null);
+    return (String(state.session?.id) === id ? state.session : null)
+      || state.sessions.find(item => String(item.id) === id) || null;
   }
   function startRename(session = state.session) {
     const target = listedSession(session);
-    if (!target || state.actionBusy) return false;
+    if (!target || target.closed_at || state.actionBusy) return false;
     resetSessionAction();
     state.renameSessionId = String(target.id);
     state.renameDraft = String(target.title || '');
@@ -86,7 +108,7 @@ export function useExplore(ownerId) {
   }
   function startDelete(session = state.session) {
     const target = listedSession(session);
-    if (!target || state.actionBusy) return false;
+    if (!target || target.closed_at || state.actionBusy) return false;
     resetSessionAction();
     state.deleteSessionId = String(target.id);
     state.deleteSessionTitle = String(target.title || '未命名探索');
@@ -148,13 +170,13 @@ export function useExplore(ownerId) {
     } catch { if (mounted && epoch === previewEpoch) state.contextPreview = null; }
   }
   function setContextMode(mode) {
-    if (!['auto', 'manual'].includes(mode) || state.contextBusy || state.contextLoading || !state.contextLoaded || state.submitting) return;
+    if (sessionClosed.value || !['auto', 'manual'].includes(mode) || state.contextBusy || state.contextLoading || !state.contextLoaded || state.submitting) return;
     const current = currentContext.value;
     state.contextDrafts[state.module] = { mode, file_ids: mode === 'manual' ? [...current.file_ids] : [] };
     state.contextError = '';
   }
   function toggleContextFile(fileId, checked) {
-    if (currentContext.value.mode !== 'manual' || state.contextBusy || state.contextLoading || !state.contextLoaded || state.fileBusy || state.submitting) return;
+    if (sessionClosed.value || currentContext.value.mode !== 'manual' || state.contextBusy || state.contextLoading || !state.contextLoaded || state.fileBusy || state.submitting) return;
     const id = String(fileId);
     if (!state.files.some(file => String(file.id) === id)) return;
     const ids = currentContext.value.file_ids.filter(item => item !== id);
@@ -164,7 +186,7 @@ export function useExplore(ownerId) {
   }
   async function saveContext() {
     const sessionId = state.session?.id;
-    if (!sessionId || state.contextBusy || state.fileBusy || state.submitting || state.loadingSession || !state.contextLoaded) return false;
+    if (!sessionId || sessionClosed.value || state.contextBusy || state.fileBusy || state.submitting || state.loadingSession || !state.contextLoaded) return false;
     const navigation = navigationEpoch;
     const body = contextRequest(state.module, currentContext.value);
     state.contextBusy = true;
@@ -207,7 +229,7 @@ export function useExplore(ownerId) {
     const file = state.fileDetail;
     const sessionId = state.session?.id;
     const name = state.fileNameDraft.trim();
-    if (!sessionId || !file?.id || !name || state.fileBusy) return;
+    if (!sessionId || sessionClosed.value || !file?.id || !name || state.fileBusy) return;
     const navigation = navigationEpoch;
     filesEpoch += 1;
     state.filesLoading = false;
@@ -225,7 +247,7 @@ export function useExplore(ownerId) {
   async function removeFile() {
     const file = state.fileDetail;
     const sessionId = state.session?.id;
-    if (!sessionId || !file?.id || state.fileBusy) return;
+    if (!sessionId || sessionClosed.value || !file?.id || state.fileBusy) return;
     const navigation = navigationEpoch;
     const unsaved = Object.fromEntries(['event', 'relation', 'history'].filter(module =>
       JSON.stringify(contextRequest(module, state.contextDrafts[module])) !== JSON.stringify(contextRequest(module, state.contexts[module]))
@@ -348,6 +370,8 @@ export function useExplore(ownerId) {
     if (index < 0) state.runs.push(run);
     else state.runs.splice(index, 1, run);
     if (String(state.selectedRunId) === String(run.id)) {
+      // A later terminal record supersedes a transient status-poll error.
+      if (terminalRun(run) && state.actionError.startsWith('状态更新失败：')) state.actionError = '';
       const originalSourceId = previous?.source_report_id ?? run.source_report_id ?? '';
       if (run.report?.id && !previous?.report?.id && String(state.sourceReportId || '') === String(originalSourceId)) {
         state.sourceReportId = run.report.id;
@@ -396,7 +420,7 @@ export function useExplore(ownerId) {
     state.selectedRunId = String(chosen?.id || '');
     const run = selectedRun.value;
     if (['event', 'relation', 'history'].includes(run?.module)) state.module = run.module;
-    state.sourceReportId = run?.report?.id || run?.source_report_id || '';
+    state.sourceReportId = run?.report?.id || (run?.memory_output ? '' : run?.source_report_id) || '';
     state.judgment = run?.status === 'awaiting_input' ? run.proposed_judgment || run.question || '' : '';
     syncReviewDraft(run, true);
     state.actionError = '';
@@ -409,7 +433,8 @@ export function useExplore(ownerId) {
     const epoch = ++sessionsEpoch;
     try {
       const result = await call(signal => api.listSessions(signal));
-      if (mounted && epoch === sessionsEpoch) state.sessions = Array.isArray(result?.sessions) ? result.sessions : [];
+      if (mounted && epoch === sessionsEpoch) state.sessions = (Array.isArray(result?.sessions) ? result.sessions : []).map(item =>
+        String(item.id) === String(state.session?.id) && state.session?.closed_at ? { ...item, closed_at: state.session.closed_at } : item);
     } catch (error) {
       if (mounted && navigation === navigationEpoch && epoch === sessionsEpoch && error.name !== 'AbortError') state.error = error.message;
     }
@@ -506,13 +531,15 @@ export function useExplore(ownerId) {
     state.loading = false;
   }
   function useSuggestion(item, sourceId = '') {
-    if (!item?.question) return;
+    if (!item?.question || sessionClosed.value || !showComposer.value) return;
     state.draft = String(item.question);
     state.module = ['event', 'relation', 'history'].includes(item.module) ? item.module : state.module;
     if (sourceId) state.sourceReportId = sourceId;
   }
-  async function createAnalysis({ question, module, sourceReportId }, { clearDraft = false } = {}) {
-    if (!canStartRun.value || !question || !['event', 'relation', 'history'].includes(module)) return false;
+  async function createAnalysis({ question, module, sourceReportId }, { clearDraft = false, choiceRunId = '' } = {}) {
+    if (!(choiceRunId ? canChooseLiteRecommendation.value : canStartRun.value) || !question || !['event', 'relation', 'history'].includes(module)) return false;
+    // Capture the next-run choice before createSession or any other awaited work.
+    const model = validExploreModel(state.model) ? state.model : defaultExploreModel;
     const navigation = navigationEpoch;
     const selection = state.selectedRunId;
     state.submitting = true;
@@ -531,7 +558,14 @@ export function useExplore(ownerId) {
         if (!mounted || navigation !== navigationEpoch || String(state.session?.id) !== String(sessionId)) return false;
       }
       const context = contextRequest(module, state.contextDrafts[module]);
-      const body = { module, question, source_report_id: sourceReportId, context_mode: context.mode, file_ids: context.file_ids };
+      const body = { module, question, source_report_id: sourceReportId, context_mode: context.mode, file_ids: context.file_ids, model };
+      // The first event explanation can continue before a formal report exists.
+      if (!selectedRun.value?.report && selectedRun.value?.memory_output?.id &&
+          (!sourceReportId || String(sourceReportId) === String(selectedRun.value.source_report_id || '')) &&
+          String(selectedRun.value.session_id) === String(sessionId)) {
+        body.source_report_id = null;
+        body.source_run_id = selectedRun.value.id;
+      }
       const key = keyFor('create', sessionId, body);
       const result = await call(signal => api.createRun(sessionId, { ...body, idempotency_key: key }, signal));
       if (!mounted || navigation !== navigationEpoch || String(state.session?.id) !== String(sessionId)) return;
@@ -539,17 +573,30 @@ export function useExplore(ownerId) {
       pendingClear('create', sessionId, body);
       state.contexts[module] = { mode: context.mode, file_ids: [...context.file_ids] };
       upsertRun(result.run);
+      if (choiceRunId) {
+        const parent = state.runs.find(run => String(run.id) === String(choiceRunId));
+        if (parent) upsertRun({ ...parent, next_step_state: 'continued' });
+      }
       refreshFiles(sessionId);
       if (clearDraft && state.draft.trim() === question) state.draft = '';
       if (String(state.selectedRunId) === String(selection)) selectRun(result.run.id);
       else scheduleBackgroundWatch();
       refreshSessions();
+      if (choiceRunId) {
+        try {
+          const refreshed = await call(signal => api.getRun(choiceRunId, signal));
+          if (mounted && navigation === navigationEpoch && String(state.session?.id) === String(sessionId) && refreshed?.run?.id) {
+            const previous = state.runs.find(run => String(run.id) === String(choiceRunId));
+            upsertRun({ ...previous, ...refreshed.run, report: refreshed.run.report || previous?.report });
+          }
+        } catch { /* The successful branch stays visible; the parent is already marked continued locally. */ }
+      }
       return true;
     } catch (error) {
       if (mounted && navigation === navigationEpoch && String(state.selectedRunId) === String(selection) && error.name !== 'AbortError') {
         state.actionError = clearDraft
-          ? `${error.message}。输入已保留；再次提交会沿用同一请求标识。`
-          : `${error.message}。再次点击该推荐会沿用同一请求标识；原输入已保留。`;
+          ? `${error.message}。输入已保留；再次提交会沿用同一请求标识（模型选择不变时）。`
+          : `${error.message}。再次点击该推荐会沿用同一请求标识（模型选择不变时）；原输入已保留。`;
       }
       return false;
     } finally { if (mounted) state.submitting = false; }
@@ -563,11 +610,15 @@ export function useExplore(ownerId) {
     const module = item?.module;
     const sourceReportId = String(sourceId || '');
     if (!question || !['event', 'relation', 'history'].includes(module) || !sourceReportId || String(selectedReport.value?.id) !== sourceReportId) return false;
+    if (isLiteChoiceReport(selectedReport.value)) {
+      if (!canChooseLiteRecommendation.value || !liteAngleRecommendations(selectedReport.value).some(row => row.module === module && row.question === item.question)) return false;
+      return createAnalysis({ question, module, sourceReportId }, { choiceRunId: selectedRun.value.id });
+    }
     return createAnalysis({ question, module, sourceReportId });
   }
   async function confirmJudgment() {
     const run = selectedRun.value;
-    if (run?.status !== 'awaiting_input' || !state.judgment.trim() || state.actionBusy) return;
+    if (sessionClosed.value || run?.status !== 'awaiting_input' || !state.judgment.trim() || state.actionBusy) return;
     const navigation = navigationEpoch;
     state.actionBusy = true;
     state.actionError = '';
@@ -579,9 +630,59 @@ export function useExplore(ownerId) {
     } catch (error) { if (mounted && navigation === navigationEpoch && String(state.selectedRunId) === String(run.id) && error.name !== 'AbortError') state.actionError = error.message; }
     finally { if (mounted) state.actionBusy = false; }
   }
+  async function chooseFeedback(choice) {
+    const run = selectedRun.value;
+    if (sessionClosed.value || !feedbackRun(run) || !['understood', 'explain_more'].includes(choice) || state.actionBusy) return false;
+    const navigation = navigationEpoch;
+    const body = { choice };
+    state.actionBusy = true;
+    state.actionError = '';
+    try {
+      const key = keyFor('feedback', run.id, body);
+      const result = await call(signal => api.submitFeedback(run.id, { ...body, idempotency_key: key }, signal));
+      if (!mounted || navigation !== navigationEpoch || String(state.selectedRunId) !== String(run.id)) return false;
+      if (!result?.run?.id) throw new Error('服务端未返回更新后的解释记录。');
+      pendingClear('feedback', run.id, body);
+      upsertRun(result.run);
+      if (activeRun(result.run)) schedulePoll(run.id);
+      else if (terminalRun(result.run)) {
+        refreshSessions();
+        refreshFiles(run.session_id);
+        scheduleBackgroundWatch();
+      }
+      return true;
+    } catch (error) {
+      if (mounted && navigation === navigationEpoch && String(state.selectedRunId) === String(run.id) && error.name !== 'AbortError') state.actionError = `${error.message}。再次点击同一选项会沿用本次请求。`;
+      return false;
+    } finally { if (mounted) state.actionBusy = false; }
+  }
+  async function finishAnalysis() {
+    const run = selectedRun.value;
+    if (sessionClosed.value || !pendingLiteChoice(run) || state.actionBusy || state.submitting) return false;
+    const navigation = navigationEpoch;
+    state.actionBusy = true;
+    state.actionError = '';
+    try {
+      const key = keyFor('finish', run.id, {});
+      const result = await call(signal => api.finishRun(run.id, key, signal));
+      if (!mounted || navigation !== navigationEpoch || String(state.session?.id) !== String(run.session_id)) return false;
+      if (!result?.run?.id || String(result.run.id) !== String(run.id) || !result?.session?.closed_at) throw new Error('服务端未确认会话已结束。');
+      pendingClear('finish', run.id, {});
+      upsertRun(result.run);
+      state.session = { ...state.session, ...result.session };
+      state.sessions = state.sessions.map(item => String(item.id) === String(state.session.id) ? { ...item, ...result.session } : item);
+      state.fileDeleteOpen = false;
+      state.contextDrafts = normalizeContexts(state.contexts);
+      refreshSessions();
+      return true;
+    } catch (error) {
+      if (mounted && navigation === navigationEpoch && String(state.selectedRunId) === String(run.id) && error.name !== 'AbortError') state.actionError = `${error.message}。再次点击“OK，结束”会沿用本次请求。`;
+      return false;
+    } finally { if (mounted) state.actionBusy = false; }
+  }
   function toggleMaterial(id, checked) {
     const run = selectedRun.value;
-    if (run?.status !== 'awaiting_review') return;
+    if (sessionClosed.value || run?.status !== 'awaiting_review') return;
     const value = String(id);
     if (!runMaterials(run).some(item => String(item.id) === value)) return;
     if (checked && !state.selectedSourceIds.includes(value)) state.selectedSourceIds = [...state.selectedSourceIds, value];
@@ -590,7 +691,7 @@ export function useExplore(ownerId) {
   async function clarify(optionId = '') {
     const run = selectedRun.value;
     const question = state.reviewQuestion.trim();
-    if (!reviewRun(run) || !run.review || state.actionBusy) return;
+    if (sessionClosed.value || !reviewRun(run) || !run.review || state.actionBusy) return;
     const option = optionId && run.status === 'awaiting_clarification'
       ? (run.review.options || []).find(item => String(item.id) === String(optionId)) : null;
     if (optionId && !option) return;
@@ -617,7 +718,7 @@ export function useExplore(ownerId) {
   }
   async function confirmMaterials() {
     const run = selectedRun.value;
-    if (run?.status !== 'awaiting_review' || !run.review || state.actionBusy) return;
+    if (sessionClosed.value || run?.status !== 'awaiting_review' || !run.review || state.actionBusy) return;
     const sourceIds = runMaterials(run).map(item => String(item.id)).filter(id => state.selectedSourceIds.includes(id));
     if (!sourceIds.length) return;
     const navigation = navigationEpoch;
@@ -641,7 +742,7 @@ export function useExplore(ownerId) {
   }
   async function cancel() {
     const run = selectedRun.value;
-    if (!run || (!activeRun(run) && !reviewRun(run) && run.status !== 'awaiting_input') || state.actionBusy) return;
+    if (sessionClosed.value || !run || (!activeRun(run) && !feedbackRun(run) && !reviewRun(run) && run.status !== 'awaiting_input') || state.actionBusy) return;
     const navigation = navigationEpoch;
     state.actionBusy = true;
     state.actionError = '';
@@ -658,7 +759,7 @@ export function useExplore(ownerId) {
   }
   async function retry() {
     const run = selectedRun.value;
-    if (!run || !['failed', 'cancelled', 'interrupted'].includes(run.status) || state.actionBusy) return;
+    if (sessionClosed.value || !run || !['failed', 'cancelled', 'interrupted'].includes(run.status) || state.actionBusy) return;
     const navigation = navigationEpoch;
     const selection = state.selectedRunId;
     state.actionBusy = true;
@@ -678,7 +779,7 @@ export function useExplore(ownerId) {
   }
   async function regenerate() {
     const run = selectedRun.value;
-    if (!run || !terminalRun(run) || !state.session?.id || state.actionBusy) return;
+    if (sessionClosed.value || !run || isLiteChoiceReport(run.report) || !terminalRun(run) || !state.session?.id || state.actionBusy) return;
     const sessionId = state.session.id;
     const navigation = navigationEpoch;
     const selection = state.selectedRunId;
@@ -687,6 +788,8 @@ export function useExplore(ownerId) {
     try {
       const context = contextRequest(run.module, state.contextDrafts[run.module]);
       const body = { module: run.module, question: run.question, source_report_id: run.source_report_id || null, context_mode: context.mode, file_ids: context.file_ids };
+      // Regeneration follows the original run; old runs without a model keep the old server default.
+      if (validExploreModel(run.model)) body.model = run.model;
       const signatureBody = { ...body, previous_run_id: run.id };
       const key = keyFor('regenerate', sessionId, signatureBody);
       const result = await call(signal => api.createRun(sessionId, { ...body, idempotency_key: key }, signal));
@@ -703,7 +806,7 @@ export function useExplore(ownerId) {
   }
   async function rename() {
     const sessionId = state.renameSessionId;
-    if (!state.renameOpen || !sessionId || state.actionBusy) return false;
+    if (!state.renameOpen || !sessionId || listedSession({ id: sessionId })?.closed_at || state.actionBusy) return false;
     const title = String(state.renameDraft || '').trim();
     if (!title || Array.from(title).length > 120) {
       state.sessionActionError = !title ? '请输入会话名称。' : '会话名称最多 120 个字。';
@@ -730,7 +833,7 @@ export function useExplore(ownerId) {
   }
   async function removeSession() {
     const sessionId = state.deleteSessionId;
-    if (!state.deleteOpen || !sessionId || state.actionBusy) return false;
+    if (!state.deleteOpen || !sessionId || listedSession({ id: sessionId })?.closed_at || state.actionBusy) return false;
     const action = sessionActionEpoch;
     const navigation = navigationEpoch;
     state.actionBusy = true;
@@ -762,7 +865,7 @@ export function useExplore(ownerId) {
     finally { if (mounted) state.actionBusy = false; }
   }
   function continueFromSelected() {
-    if (!selectedReport.value?.id) return;
+    if (sessionClosed.value || isLiteChoiceReport(selectedReport.value) || !selectedReport.value?.id) return;
     state.sourceReportId = selectedReport.value.id;
     state.draft = '';
   }
@@ -787,8 +890,10 @@ export function useExplore(ownerId) {
     window.removeEventListener('hashchange', onLocationChange);
   });
   watch(() => [state.session?.id, state.module, state.sourceReportId, currentContext.value.mode], refreshContextPreview);
-  return { state, selectedRun, selectedReport, sourceReport, tree, isActive, canStartRun, canSubmit, currentContext, contextDirty, selectedContextFiles,
-    newExplore, openSession, selectRun, setHistoryOpen, useSuggestion, submit, runRecommendation, confirmJudgment, clarify, confirmMaterials, toggleMaterial, cancel, retry, regenerate,
+  return { state, selectedRun, selectedReport, sourceReport, tree, isActive, sessionClosed, canStartRun, canChooseLiteRecommendation,
+    canChooseEventRecommendation: canChooseLiteRecommendation, showComposer, canSubmit, currentContext, contextDirty, selectedContextFiles,
+    newExplore, openSession, selectRun, setHistoryOpen, setModel, useSuggestion, submit, runRecommendation, confirmJudgment, chooseFeedback,
+    finishAnalysis, finishEvent: finishAnalysis, clarify, confirmMaterials, toggleMaterial, cancel, retry, regenerate,
     startRename, startDelete, closeSessionAction, rename, removeSession, download, continueFromSelected, refreshSessions,
     refreshFiles, loadContexts, setContextMode, toggleContextFile, saveContext, openFile, clearFileDetail, renameFile, removeFile, downloadFile };
 }

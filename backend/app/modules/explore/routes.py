@@ -83,6 +83,47 @@ def session_context(session_id):
                                                                   source_report_id)})
 
 
+@explore.route("/desktop/api/explore/sessions/<session_id>/memory", methods=["GET"])
+def session_memory(session_id):
+    service, owner = context()
+    run_id = request.args.get("run_id") or None
+    latest = None
+    if run_id:
+        run = service.repository.get_run(owner, run_id)
+        if run["session_id"] != session_id:
+            raise GatewayError("研究记忆不存在或无权访问。", 404)
+        latest = run.get("memory_output") or run.get("memory_input")
+    memories = service.repository.list_memories(owner, session_id, run_id=run_id)
+    if not run_id and memories:
+        latest = memories[-1]
+    response = jsonify({"latest": latest, "memories": memories,
+                        "scope": "selected_run" if run_id else "session"})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@explore.route("/desktop/api/explore/sessions/<session_id>/memory/<memory_id>", methods=["GET"])
+def memory_item(session_id, memory_id):
+    service, owner = context()
+    response = jsonify({"memory": service.repository.get_memory(owner, session_id, memory_id)})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@explore.route("/desktop/api/explore/sessions/<session_id>/memory/<memory_id>/download", methods=["GET"])
+def memory_download(session_id, memory_id):
+    service, owner = context()
+    item = service.repository.get_memory(owner, session_id, memory_id)
+    name = f"研究记忆-v{item['version']}.md"
+    response = Response(item["content"], mimetype="text/markdown; charset=utf-8")
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="research-memory-v{item["version"]}.md"; filename*=UTF-8\'\'{quote(name)}')
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @explore.route("/desktop/api/explore/sessions/<session_id>/runs", methods=["POST"])
 def create_run(session_id):
     service, owner = context()
@@ -121,6 +162,19 @@ def clarify(run_id):
 def confirm(run_id):
     service, owner = context()
     return jsonify({"run": service.confirm(owner, run_id, json_body())}), 202
+
+
+@explore.route("/desktop/api/explore/runs/<run_id>/feedback", methods=["POST"])
+def feedback(run_id):
+    service, owner = context()
+    return jsonify({"run": service.feedback(owner, run_id, json_body())}), 202
+
+
+@explore.route("/desktop/api/explore/runs/<run_id>/finish", methods=["POST"])
+def finish(run_id):
+    service, owner = context()
+    run, session = service.finish(owner, run_id, json_body())
+    return jsonify({"run": run, "session": session})
 
 
 @explore.route("/desktop/api/explore/runs/<run_id>/cancel", methods=["POST"])

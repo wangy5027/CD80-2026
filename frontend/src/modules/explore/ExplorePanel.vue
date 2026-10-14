@@ -5,19 +5,23 @@ import ExploreAmbientBackground from './ExploreAmbientBackground.vue';
 import ExploreComposer from './ExploreComposer.vue';
 import ExploreRecommendations from './ExploreRecommendations.vue';
 import ExploreSourceChip from './ExploreSourceChip.vue';
+import ExploreMemory from './ExploreMemory.vue';
 import { useExploreMotion } from './useExploreMotion.js';
-import { formatEvidenceTime, sourceSupports, publicRunActivity } from './presentation.js';
-import { eventBriefCoverageNote, isEventBrief } from './reportPresentation.js';
+import { formatEvidenceTime, sourceSupports, publicRunActivity, publicStageTitle } from './presentation.js';
+import { eventBriefCoverageNote, isEventBrief, isLiteAnalysisReport, isLiteChoiceReport, liteAngleRecommendations, pendingLiteChoice } from './reportPresentation.js';
 import { renderReportMarkdown } from './reportMarkdown.js';
-import { moduleTitle, safeSourceUrl, sourceLabel, sourceKindLabel, stageLabel, reportSources, runMaterials, confirmedMaterialIds, materialContentLabel, retrievalSearches, searchStatusLabel, searchFreshnessLabel, fileKindLabel, fileOriginLabel, contextFiles, maxContextFiles } from './model.js';
+import { sourceBodyText, sourceDisplayText } from './sourceText.js';
+import { AI_FAILURE_MESSAGE, isExploreAiFailure, isExploreInitialAiFailure } from './aiFailurePresentation.js';
+import { moduleTitle, safeSourceUrl, sourceLabel, sourceKindLabel, stageLabel, reportSources, visibleRunMaterials, visibleNewFiles, isEventInitial, isHistoryLiteRun, eventInitialProgressLabel, confirmedMaterialIds, materialContentLabel, retrievalSearches, searchStatusLabel, searchFreshnessLabel, fileKindLabel, fileOriginLabel, contextFiles, maxContextFiles } from './model.js';
+import infinityLogo from './assets/infinity-logo.png';
 import './explore.css';
 
 const props = defineProps({ ownerId: { type: [String, Number], required: true } });
 const emit = defineEmits(['back']);
 const { effectivePaused } = useExploreMotion();
 const {
-  state, selectedRun, selectedReport, tree, isActive, canStartRun, canSubmit, currentContext, contextDirty, selectedContextFiles,
-  newExplore, openSession, selectRun, setHistoryOpen, useSuggestion, runRecommendation, submit, confirmJudgment, clarify, confirmMaterials, toggleMaterial, cancel, retry,
+  state, selectedRun, selectedReport, tree, isActive, sessionClosed, canStartRun, canChooseLiteRecommendation, showComposer, canSubmit, currentContext, contextDirty, selectedContextFiles,
+  newExplore, openSession, selectRun, setHistoryOpen, setModel, useSuggestion, runRecommendation, submit, confirmJudgment, chooseFeedback, finishAnalysis, clarify, confirmMaterials, toggleMaterial, cancel, retry,
   regenerate, startRename, startDelete, closeSessionAction, rename, removeSession, download, continueFromSelected,
   refreshFiles, loadContexts, setContextMode, toggleContextFile, saveContext, openFile, clearFileDetail, renameFile, removeFile, downloadFile,
 } = useExplore(props.ownerId);
@@ -141,6 +145,7 @@ onUnmounted(() => {
 });
 const selectedRelationIndex = ref(0);
 const materialsOpen = ref(false);
+const sourcesView = ref(false);
 const citationSourceIds = ref([]);
 const materialsDialog = ref(null);
 const materialsClose = ref(null);
@@ -150,10 +155,15 @@ const filesDialog = ref(null);
 const filesClose = ref(null);
 let filesReturnFocus = null;
 const sessionFiles = computed(() => state.files.filter(file => String(file.session_id) === String(state.session?.id)));
+const eventInitial = computed(() => isEventInitial(selectedRun.value));
+const historyInitial = computed(() => isHistoryLiteRun(selectedRun.value) && selectedRun.value?.phase === 'history_initial');
+const initialAiFailure = computed(() => isExploreInitialAiFailure(selectedRun.value));
+const historyIntro = computed(() => isHistoryLiteRun(selectedRun.value) &&
+  (initialAiFailure.value || Boolean(String(selectedRun.value?.initial_answer || '').trim())));
 const recentAddedFileIds = ref([]);
 const newFilesExpanded = ref(false);
 watch(newFilesExpanded, scheduleNoticeDismiss);
-const newFiles = computed(() => recentAddedFileIds.value.map(id => sessionFiles.value.find(file => String(file.id) === id)).filter(Boolean));
+const newFiles = computed(() => visibleNewFiles(recentAddedFileIds.value.map(id => sessionFiles.value.find(file => String(file.id) === id)).filter(Boolean), selectedRun.value));
 let observedFileSession = '';
 let observedFileIds = new Set();
 let fileBaselineReady = false;
@@ -184,8 +194,28 @@ watch(() => [state.session?.id, state.loadingSession, state.filesLoading, sessio
 }, { immediate: true });
 const selectedRelation = computed(() => selectedReport.value?.relations?.[selectedRelationIndex.value] || null);
 const briefReport = computed(() => isEventBrief(selectedReport.value));
+const liteDeepReport = computed(() => isLiteAnalysisReport(selectedReport.value));
+const choiceReport = computed(() => isLiteChoiceReport(selectedReport.value));
+const aiFailure = computed(() => isExploreAiFailure(selectedRun.value, selectedReport.value));
+const failedFilePreview = computed(() => {
+  const file = state.fileDetail;
+  if (file?.kind !== 'report') return false;
+  const run = state.runs.find(item => String(item.id) === String(file.source_run_id) ||
+    (file.source_report_id && String(item.report?.id) === String(file.source_report_id)));
+  if (!run) return false;
+  const firstAnswerFile = ['initial_explanation', 'history_initial'].includes(file.phase) ||
+    String(run.initial_file_ids?.answer || '') === String(file.id);
+  return firstAnswerFile ? isExploreInitialAiFailure(run) : isExploreAiFailure(run, run.report);
+});
+const liteContextRun = computed(() => /^(?:event|relation|history)-lite@/.test(String(selectedRun.value?.workflow_version || '')));
+const liteChoicePending = computed(() => pendingLiteChoice(selectedRun.value) && !sessionClosed.value);
+const liteRecommendations = computed(() => liteAngleRecommendations(selectedReport.value));
+const recommendationsUnavailable = computed(() => choiceReport.value &&
+  (selectedReport.value?.report_variant === 'recommendations_unavailable' ||
+    Boolean(selectedReport.value?.retrieval?.recommendation_error) ||
+    liteRecommendations.value.length !== 3));
 const briefCoverageNote = computed(() => eventBriefCoverageNote(selectedReport.value));
-const materials = computed(() => runMaterials(selectedRun.value));
+const materials = computed(() => visibleRunMaterials(selectedRun.value));
 const drawerMaterials = computed(() => {
   const records = materials.value.map(material => {
     const used = reportSources(selectedReport.value).find(source => String(source.id) === String(material.id));
@@ -197,15 +227,16 @@ const drawerMaterials = computed(() => {
 const visibleDrawerMaterials = computed(() => citationSourceIds.value.length
   ? citationSourceIds.value.map(id => drawerMaterials.value.find(item => String(item.id) === id)).filter(Boolean)
   : drawerMaterials.value);
-const runActivity = computed(() => publicRunActivity(selectedRun.value));
+const runActivity = computed(() => eventInitial.value || historyInitial.value ? [] : publicRunActivity(selectedRun.value));
 const recentActivity = computed(() => runActivity.value.slice(-3));
 const exampleQuestions = [
   { id: 'event', label: '梳理这篇报道的时间线', example: '请梳理以下报道的事件时间线、背景与不确定性：\n[在这里粘贴报道原文或链接]' },
   { id: 'relation', label: '找出这家公司的关键联系', example: '请分析[公司名称]与上下游主体的关系方向、机制和成立条件。\n[补充你关注的事件或材料]' },
-  { id: 'history', label: '寻找判断的历史支持与反例', example: '请查找历史材料验证以下判断，并对照支持与反例：\n[填写待验证判断及适用条件]' },
+  { id: 'history', label: '分析主体间的历史联系', example: '请分析[主体]与[关联主体]的历史关联，以及这些历史事件可能如何影响它们当前的关系。\n[补充你关注的当前事件或材料]' },
 ];
 const confirmedMaterials = computed(() => confirmedMaterialIds(selectedRun.value));
 const progressFacts = computed(() => {
+  if (eventInitial.value || historyInitial.value) return [];
   const facts = [];
   if (materials.value.length) facts.push(`已保存 ${materials.value.length} 条检索材料`);
   if (selectedRun.value?.resolved_question || (selectedRun.value?.review && selectedRun.value.review.needs_clarification === false)) facts.push('研究问题已明确');
@@ -215,16 +246,23 @@ const progressQuestion = computed(() => selectedRun.value?.resolved_question || 
 const modelOutputChars = computed(() => Number.isInteger(selectedRun.value?.model_progress?.output_chars) && selectedRun.value.model_progress.output_chars > 0 ? selectedRun.value.model_progress.output_chars : 0);
 const progressHeading = computed(() => {
   const run = selectedRun.value;
+  if (eventInitial.value) return eventInitialProgressLabel(run);
+  if (historyInitial.value) return run?.stage === 'explaining' || run?.model_progress ? '正在回复' : stageLabel(run?.stage);
   const phase = { claim_review: '正在核对证据与主张', report: '正在撰写研究报告', review: '正在复核报告', repair: '正在修订报告' };
   return run?.stage === 'analyzing' && phase[run.model_progress?.task] ? phase[run.model_progress.task] : stageLabel(run?.stage);
 });
 const reviewPending = computed(() => ['awaiting_clarification', 'awaiting_review'].includes(selectedRun.value?.status));
-const canConfirmMaterials = computed(() => selectedRun.value?.status === 'awaiting_review' && state.reviewQuestion.trim() === initialReviewQuestion.value && materials.value.some(item => state.selectedSourceIds.includes(String(item.id))) && !state.actionBusy);
+const canConfirmMaterials = computed(() => !sessionClosed.value && selectedRun.value?.status === 'awaiting_review' && state.reviewQuestion.trim() === initialReviewQuestion.value && materials.value.some(item => state.selectedSourceIds.includes(String(item.id))) && !state.actionBusy);
 const initialReviewQuestion = computed(() => String(selectedRun.value?.review?.interpreted_question || selectedRun.value?.question || '').trim());
-const statusTitle = computed(() => ({
-  awaiting_input: '等待确认判断', awaiting_clarification: '等待明确问题', awaiting_review: '等待确认材料', queued: '已受理', running: '分析中', succeeded: '已完成',
-  partial: '部分完成', failed: '分析失败', cancelled: '已取消', interrupted: '运行中断',
-})[selectedRun.value?.status] || '尚未开始');
+const statusTitle = computed(() => {
+  if (aiFailure.value) return '分析失败';
+  if (eventInitial.value && isActive.value) return eventInitialProgressLabel(selectedRun.value);
+  if (historyInitial.value && isActive.value) return progressHeading.value;
+  return ({
+    awaiting_input: '等待确认判断', awaiting_feedback: '等待选择', awaiting_clarification: '等待明确问题', awaiting_review: '等待确认材料', queued: '已受理', running: '分析中', succeeded: '已完成',
+    partial: '部分完成', failed: '分析失败', cancelled: '已取消', interrupted: '运行中断',
+  })[selectedRun.value?.status] || '尚未开始';
+});
 const scene = computed(() => selectedReport.value ? 'report' : selectedRun.value ? 'research' : 'entry');
 watch(scene, async (value, previous) => {
   shellAnimation?.cancel();
@@ -297,6 +335,7 @@ function rememberReadingPosition() {
   if (state.selectedRunId && !state.loadingSession && reader.value) readPositions.set(String(state.selectedRunId), reader.value.scrollTop);
 }
 function historyStageLabel(stage, current) {
+  if (isHistoryLiteRun(selectedRun.value) && ['explaining', 'history_initial_ready'].includes(stage)) return publicStageTitle(selectedRun.value, stage);
   if (current) return stageLabel(stage);
   if (stage === 'preparing_report') return '报告准备';
   return stageLabel(stage).replace(/^正在/, '');
@@ -316,9 +355,11 @@ function sourceDomId(id) { return `explore-source-${String(selectedReport.value?
 function focusSource(id) { openMaterials(String(id)); }
 function openCitationSources(ids) { openMaterials(ids[0], ids); }
 function showAllMaterials() {
+  sourcesView.value = false;
   citationSourceIds.value = [];
   nextTick(() => materialsClose.value?.focus());
 }
+function openReportSources() { openMaterials('', [], true); }
 function chooseExample(item) { useSuggestion({ question: item.example, module: item.id }); nextTick(() => input.value?.focus()); }
 function useReportAsSource() { continueFromSelected(); nextTick(() => input.value?.focus()); }
 function openHistory() { setHistoryOpen(true); }
@@ -341,6 +382,7 @@ function positionSessionMenu() {
 }
 function openSessionMenu(session, event) {
   event.stopPropagation();
+  if (session.closed_at) return;
   if (sessionMenuId.value === String(session.id)) { closeSessionMenu(true); return; }
   menuTrigger = event.currentTarget;
   sessionMenuId.value = String(session.id);
@@ -415,10 +457,11 @@ function onHistoryKeydown(event) {
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
 }
-function openMaterials(sourceId = '', sourceIds = []) {
-  if (!drawerMaterials.value.length) return;
+function openMaterials(sourceId = '', sourceIds = [], reportSourcesOnly = false) {
+  if (eventInitial.value || !drawerMaterials.value.length) return;
   if (filesOpen.value) closeFiles();
   if (!materialsOpen.value) materialsReturnFocus = document.activeElement;
+  sourcesView.value = reportSourcesOnly;
   citationSourceIds.value = Array.isArray(sourceIds)
     ? [...new Set(sourceIds.map(String))].filter(id => drawerMaterials.value.some(item => String(item.id) === id))
     : [];
@@ -475,7 +518,7 @@ function closeFiles() {
   restoreOverlayFocus(target);
 }
 async function finishFiles() {
-  if (contextDirty.value && !(await saveContext())) return;
+  if (!sessionClosed.value && contextDirty.value && !(await saveContext())) return;
   closeFiles();
 }
 function onFilesKeydown(event) {
@@ -501,7 +544,7 @@ function onFilesKeydown(event) {
         <p v-if="state.loading" class="explore-nav-muted" role="status">正在读取研究历史…</p>
         <p v-else-if="!state.sessions.length" class="explore-nav-muted">还没有保存的探索。</p>
         <ul v-else class="explore-session-list" data-testid="explore-session-list">
-          <li v-for="session in state.sessions" :key="session.id" class="explore-session-row" :class="{ selected: String(state.session?.id) === String(session.id) }" :data-session-id="session.id"><button class="explore-session-item" :class="{ selected: String(state.session?.id) === String(session.id) }" type="button" :aria-current="String(state.session?.id) === String(session.id) ? 'page' : undefined" @click="openSession(session.id)"><span>{{ session.title || '未命名探索' }}</span><small>{{ displayTime(session.updated_at) }}</small></button><button class="explore-session-more" data-testid="explore-session-more" type="button" :aria-label="'更多操作：' + (session.title || '未命名探索')" aria-haspopup="menu" :aria-expanded="sessionMenuId === String(session.id)" @click="openSessionMenu(session, $event)">⋯</button></li>
+          <li v-for="session in state.sessions" :key="session.id" class="explore-session-row" :class="{ selected: String(state.session?.id) === String(session.id) }" :data-session-id="session.id"><button class="explore-session-item" :class="{ selected: String(state.session?.id) === String(session.id) }" type="button" :aria-current="String(state.session?.id) === String(session.id) ? 'page' : undefined" @click="openSession(session.id)"><span>{{ session.title || '未命名探索' }}</span><small>{{ session.closed_at ? '已结束 · ' : '' }}{{ displayTime(session.updated_at) }}</small></button><button v-if="!session.closed_at" class="explore-session-more" data-testid="explore-session-more" type="button" :aria-label="'更多操作：' + (session.title || '未命名探索')" aria-haspopup="menu" :aria-expanded="sessionMenuId === String(session.id)" @click="openSessionMenu(session, $event)">⋯</button></li>
         </ul>
         <template v-if="state.session && !state.loadingSession">
           <div class="explore-history-rule" />
@@ -517,14 +560,14 @@ function onFilesKeydown(event) {
 
     <div class="explore-main" :inert="historyModal || undefined">
       <header class="explore-topbar" :class="{ 'editing-title': inlineTitle && state.renameOpen }">
-        <div class="explore-topbar-leading"><div class="explore-brand" aria-label="Ficagent Explore"><span class="brand-mark" aria-hidden="true">F</span><strong>Ficagent</strong><span class="explore-brand-divider" aria-hidden="true" /><span>Explore</span></div><button class="explore-back" type="button" @click="emit('back')"><span aria-hidden="true">←</span> 返回工作台</button></div>
+        <div class="explore-topbar-leading"><div class="explore-brand" aria-label="inFINity Explore"><span class="explore-brand-logo"><img :src="infinityLogo" alt="inFINity" /></span><span class="explore-brand-divider" aria-hidden="true" /><span>Explore</span></div><button class="explore-back" type="button" @click="emit('back')"><span aria-hidden="true">←</span> 返回工作台</button></div>
         <div class="explore-topbar-title">
           <div v-if="inlineTitle && state.renameOpen" class="explore-title-editor" data-testid="explore-title-editor" @keydown="onSessionDialogKeydown">
             <input ref="titleInput" v-model="state.renameDraft" aria-label="探索名称" maxlength="120" :disabled="state.actionBusy" @compositionstart="onRenameCompositionStart" @compositionend="onRenameCompositionEnd" @keydown="onRenameKeydown" />
             <button type="button" :disabled="state.actionBusy || !state.renameDraft.trim()" @click="rename">保存</button><button type="button" :disabled="state.actionBusy" @click="cancelSessionDialog">取消</button>
             <span v-if="state.sessionActionError" role="alert">{{ state.sessionActionError }}</span>
           </div>
-          <h1 v-else><button ref="titleButton" type="button" :disabled="!state.session || state.loadingSession" :title="state.session?.title || '新的探索'" aria-label="编辑探索标题" @click="editTitle">{{ state.session?.title || '新的探索' }} <span v-if="state.session" aria-hidden="true">✎</span></button></h1>
+          <h1 v-else><button ref="titleButton" type="button" :disabled="!state.session || state.loadingSession || sessionClosed" :title="state.session?.title || '新的探索'" :aria-label="sessionClosed ? '已结束的探索' : '编辑探索标题'" @click="editTitle">{{ state.session?.title || '新的探索' }} <span v-if="state.session && !sessionClosed" aria-hidden="true">✎</span></button></h1>
         </div>
         <div class="explore-topbar-actions">
           <div class="explore-file-dock" data-testid="explore-file-dock">
@@ -536,12 +579,14 @@ function onFilesKeydown(event) {
 
       <Transition name="explore-save-notice"><div v-if="saveNoticeVisible && newFiles.length && state.session && !state.loadingSession" class="explore-file-arrivals" data-testid="explore-file-arrivals" aria-live="polite" @pointerenter="holdNotice('pointer')" @pointerleave="releaseNotice('pointer', $event)" @focusin="holdNotice('focus')" @focusout="releaseNotice('focus', $event)">
         <button class="explore-file-arrivals-toggle" data-testid="explore-file-arrivals-toggle" type="button" :aria-expanded="newFilesExpanded" @click="newFilesExpanded = !newFilesExpanded"><span>已保存 {{ newFiles.length }} 个新文件</span><span aria-hidden="true">{{ newFilesExpanded ? '−' : '+' }}</span></button>
-        <TransitionGroup v-if="newFilesExpanded" name="explore-file-arrival" tag="ul" class="explore-file-arrivals-list" tabindex="0" aria-label="本次新增文件"><li v-for="file in newFiles" :key="file.id" :data-file-id="file.id" data-testid="explore-file-arrival"><button type="button" @click="openFilesAt(file.id)"><strong>{{ file.name }}</strong><small>{{ fileKindLabel(file.kind) }}</small><span aria-hidden="true">查看 ↗</span></button></li></TransitionGroup>
+        <TransitionGroup v-if="newFilesExpanded" name="explore-file-arrival" tag="ul" class="explore-file-arrivals-list" tabindex="0" aria-label="本次新增文件"><li v-for="file in newFiles" :key="file.id" :data-file-id="file.id" data-testid="explore-file-arrival"><button type="button" @click="openFilesAt(file.id)"><strong>{{ sourceDisplayText(file.name) }}</strong><small>{{ fileKindLabel(file.kind) }}</small><span aria-hidden="true">查看 ↗</span></button></li></TransitionGroup>
       </div>
       </Transition>
-      <div v-if="backgroundCompletion" class="explore-background-result" role="status">另一条研究{{ backgroundCompletion.status === 'succeeded' ? '已完成' : backgroundCompletion.status === 'partial' ? '部分完成' : '已结束' }}<button type="button" @click="selectRun(backgroundCompletion.id); backgroundCompletion = null">查看记录</button><button type="button" aria-label="关闭提醒" @click="backgroundCompletion = null">×</button></div>
+      <div v-if="backgroundCompletion" class="explore-background-result" role="status">{{ isExploreAiFailure(backgroundCompletion, backgroundCompletion.report) ? AI_FAILURE_MESSAGE : `另一条研究${backgroundCompletion.status === 'succeeded' ? '已完成' : backgroundCompletion.status === 'partial' ? '部分完成' : '已结束'}` }}<button type="button" @click="selectRun(backgroundCompletion.id); backgroundCompletion = null">查看记录</button><button type="button" aria-label="关闭提醒" @click="backgroundCompletion = null">×</button></div>
       <div v-if="state.error" class="explore-error" role="alert">{{ state.error }}</div>
       <div v-if="state.actionError" class="explore-error" role="alert">{{ state.actionError }}</div>
+      <div v-if="state.contextError" class="explore-error explore-context-error" role="alert">{{ state.contextError }} <button v-if="!state.contextLoaded && state.session" type="button" @click="loadContexts()">重试读取文件选择</button></div>
+      <div v-if="sessionClosed" class="explore-closed-banner" data-testid="explore-session-closed" role="status">本次探索已结束。报告和文件池可查看、下载；新问题请新建探索。</div>
 
       <main ref="reader" class="explore-scroll" id="explore-scroll" @scroll.passive="rememberReadingPosition">
         <div v-if="state.loading || state.loadingSession" class="explore-loading" role="status">正在读取已保存的探索…</div>
@@ -552,24 +597,44 @@ function onFilesKeydown(event) {
         </div>
         <article v-else class="explore-document" :class="{ 'report-arriving': reportArriving, 'report-switching': reportSwitching }">
           <header ref="reportHead" class="explore-report-head" :class="{ 'head-visible': headVisible }">
-            <div class="explore-document-meta"><span>{{ moduleTitle(selectedRun.module) }}</span><span :class="'state-' + selectedRun.status">{{ statusTitle }}</span></div>
-            <h2>{{ selectedReport?.title || selectedRun.question }}</h2>
-            <div class="explore-report-tools"><button v-if="drawerMaterials.length" class="explore-materials-link" data-testid="explore-open-materials" type="button" @click="openMaterials">材料与来源 · {{ materials.length || drawerMaterials.length }} ↗</button>
+            <div class="explore-document-meta"><span>{{ moduleTitle(selectedRun.module) }}</span><span :class="'state-' + (aiFailure ? 'failed' : selectedRun.status)">{{ statusTitle }}</span></div>
+            <h2>{{ aiFailure ? selectedRun.question : selectedReport?.title || selectedRun.question }}</h2>
+            <div class="explore-report-tools"><button v-if="!eventInitial && drawerMaterials.length" class="explore-materials-link" data-testid="explore-open-materials" type="button" @click="openMaterials">材料与来源 · {{ materials.length || drawerMaterials.length }} ↗</button>
             </div>
           </header>
+          <section v-if="!aiFailure && selectedRun.module === 'event' && !selectedReport && (selectedRun.initial_answer || initialAiFailure)" class="explore-awaiting explore-feedback-card" data-testid="explore-event-initial-answer">
+            <span class="explore-section-kicker">简明解释</span>
+            <div class="explore-feedback-answer">{{ initialAiFailure ? AI_FAILURE_MESSAGE : selectedRun.initial_answer }}</div>
+            <div v-if="selectedRun.status === 'awaiting_feedback' && !sessionClosed" class="explore-feedback-prompt" data-testid="explore-feedback-options" role="group" aria-label="这次解释是否清楚">
+              <p>这次解释是否清楚？请选择：</p>
+              <div class="explore-feedback-choices">
+                <button type="button" data-testid="explore-event-understood" :disabled="state.actionBusy" @click="chooseFeedback('understood')"><span aria-hidden="true">1</span><strong>我已明白</strong></button>
+                <button type="button" data-testid="explore-event-explain-more" :disabled="state.actionBusy" @click="chooseFeedback('explain_more')"><span aria-hidden="true">2</span><strong>我需要进一步解释</strong></button>
+              </div>
+              <div class="explore-action-row"><button class="secondary-button" data-testid="explore-event-cancel" type="button" :disabled="state.actionBusy" @click="cancel">取消本轮分析</button></div>
+            </div>
+            <p v-else-if="selectedRun.status === 'succeeded'" class="explore-feedback-complete" data-testid="explore-feedback-complete">好的，本轮分析结束。</p>
+          </section>
+          <section v-if="!aiFailure && historyIntro" class="explore-awaiting explore-feedback-card" data-testid="explore-history-initial-answer">
+            <span class="explore-section-kicker">为什么检索历史关联</span>
+            <div class="explore-feedback-answer">{{ initialAiFailure ? AI_FAILURE_MESSAGE : selectedRun.initial_answer }}</div>
+          </section>
           <section v-if="isActive" class="explore-progress" data-testid="explore-progress" role="status" aria-live="polite">
             <div v-if="isActive" class="explore-progress-current">
-              <span class="explore-section-kicker">正在研究</span>
+              <span class="explore-section-kicker">{{ eventInitial ? '理解事件' : historyInitial ? '历史验证' : '正在研究' }}</span>
               <div class="explore-stage-heading"><h3 :key="progressHeading"><span class="explore-progress-pulse" aria-hidden="true" />{{ progressHeading }}</h3><button class="secondary-button" data-testid="explore-cancel" type="button" :disabled="state.actionBusy" @click="cancel">取消分析</button></div>
-              <div v-if="progressFacts.length" class="explore-progress-facts"><span v-for="fact in progressFacts" :key="fact">{{ fact }}</span></div>
-              <p v-if="!materials.length">等待本次研究的材料与阶段更新。</p>
-              <TransitionGroup v-else name="explore-event" tag="ul" class="explore-progress-material-list" aria-label="当前研究已取得的材料"><li v-for="item in materials.slice(-3)" :key="item.id"><button type="button" @click="focusSource(item.id)"><span>{{ item.id }}</span><strong>{{ sourceLabel(item) }}</strong><small>{{ materialContentLabel(item.content_kind) }} ↗</small></button></li></TransitionGroup>
-              <TransitionGroup name="explore-event" tag="ol" class="explore-recent-events"><li v-for="item in recentActivity" :key="item.key"><span class="explore-stage-mark" aria-hidden="true">·</span><span>{{ item.title }}<small v-if="item.statusLabel"> · {{ item.statusLabel }}</small></span><small>{{ item.durationLabel || displayTime(item.at) }}</small></li></TransitionGroup>
-              <div class="explore-progress-actions"><button v-if="materials.length" type="button" data-testid="explore-progress-materials" @click="openMaterials">查看全部 {{ materials.length }} 条材料 ↗</button></div>
+              <p v-if="eventInitial || historyInitial">{{ progressHeading === '正在回复' ? '正在整理简明回复…' : '正在探索与你的问题相关的信息…' }}</p>
+              <template v-else>
+                <div v-if="progressFacts.length" class="explore-progress-facts"><span v-for="fact in progressFacts" :key="fact">{{ fact }}</span></div>
+                <p v-if="!materials.length">等待本次研究的材料与阶段更新。</p>
+                <TransitionGroup v-else name="explore-event" tag="ul" class="explore-progress-material-list" aria-label="当前研究已取得的材料"><li v-for="item in materials.slice(-3)" :key="item.id"><button type="button" @click="focusSource(item.id)"><span>{{ item.id }}</span><strong>{{ sourceDisplayText(sourceLabel(item)) }}</strong><small>{{ materialContentLabel(item.content_kind) }} ↗</small></button></li></TransitionGroup>
+                <TransitionGroup name="explore-event" tag="ol" class="explore-recent-events"><li v-for="item in recentActivity" :key="item.key"><span class="explore-stage-mark" aria-hidden="true">·</span><span>{{ item.title }}<small v-if="item.statusLabel"> · {{ item.statusLabel }}</small></span><small>{{ item.durationLabel || displayTime(item.at) }}</small></li></TransitionGroup>
+                <div class="explore-progress-actions"><button v-if="materials.length" type="button" data-testid="explore-progress-materials" @click="openMaterials">查看全部 {{ materials.length }} 条材料 ↗</button></div>
+              </template>
             </div>
-            <details class="explore-process-details"><summary>{{ isActive ? '查看完整过程' : '研究过程 · 已结束' }}</summary><p v-if="progressQuestion">已理解的问题：{{ progressQuestion }}</p><p v-if="selectedRun.model_progress">模型输出：{{ modelOutputChars ? modelOutputChars + ' 字符' : '尚未取得输出计数' }}（字符数不是完成比例）</p><ol><li v-for="item in runActivity" :key="item.key"><span>{{ item.title }} {{ item.statusLabel }}</span><small>{{ item.durationLabel }} {{ displayTime(item.at) }}</small></li></ol><details v-if="selectedRun.retrieval?.tool_trace?.length || selectedRun.retrieval?.model_trace?.length"><summary>阶段记录</summary><ol><li v-for="item in selectedRun.stage_history || []" :key="item.stage + item.at"><span>{{ historyStageLabel(item.stage, false) }}</span><small>{{ displayTime(item.at) }}</small></li></ol></details></details>
+            <details v-if="!eventInitial && !historyInitial" class="explore-process-details"><summary>{{ isActive ? '查看完整过程' : '研究过程 · 已结束' }}</summary><p v-if="progressQuestion">已理解的问题：{{ progressQuestion }}</p><p v-if="selectedRun.model_progress">模型输出：{{ modelOutputChars ? modelOutputChars + ' 字符' : '尚未取得输出计数' }}（字符数不是完成比例）</p><ol><li v-for="item in runActivity" :key="item.key"><span>{{ item.title }} {{ item.statusLabel }}</span><small>{{ item.durationLabel }} {{ displayTime(item.at) }}</small></li></ol><details v-if="selectedRun.retrieval?.tool_trace?.length || selectedRun.retrieval?.model_trace?.length"><summary>阶段记录</summary><ol><li v-for="item in selectedRun.stage_history || []" :key="item.stage + item.at"><span>{{ historyStageLabel(item.stage, false) }}</span><small>{{ displayTime(item.at) }}</small></li></ol></details></details>
           </section>
-          <section v-if="reviewPending" class="explore-awaiting explore-review-card" :data-testid="selectedRun.status === 'awaiting_clarification' ? 'explore-clarification' : 'explore-review'">
+          <section v-if="reviewPending && !sessionClosed" class="explore-awaiting explore-review-card" :data-testid="selectedRun.status === 'awaiting_clarification' ? 'explore-clarification' : 'explore-review'">
             <span class="explore-section-kicker">{{ selectedRun.status === 'awaiting_clarification' ? '资料已找到 · 请明确研究方向' : '资料已找到 · 等待材料确认' }}</span>
             <h3>{{ selectedRun.status === 'awaiting_clarification' ? '我们找到这些材料，但还需确认你的问题' : '请确认研究问题与材料' }}</h3>
             <p v-if="selectedRun.review?.summary">{{ selectedRun.review.summary }}</p>
@@ -579,7 +644,7 @@ function onFilesKeydown(event) {
             <div class="explore-review-evidence">
               <div class="explore-review-evidence-head"><strong>本次找到的材料</strong><span>{{ materials.length }} 条<span v-if="selectedRun.status === 'awaiting_review'"> · {{ state.selectedSourceIds.length }} 条拟用于报告</span></span></div>
               <p v-if="!materials.length">本次没有可供选择的材料，无法生成报告。可编辑问题重新检索。</p>
-              <ul v-else><li v-for="item in materials.slice(0, 4)" :key="item.id"><span>{{ item.id }}</span><strong>{{ sourceLabel(item) }}</strong><small>{{ sourceKindLabel(item.kind) }}</small></li></ul>
+              <ul v-else><li v-for="item in materials.slice(0, 4)" :key="item.id"><span>{{ item.id }}</span><strong>{{ sourceDisplayText(sourceLabel(item)) }}</strong><small>{{ sourceKindLabel(item.kind) }}</small></li></ul>
               <p v-if="materials.length > 4">另有 {{ materials.length - 4 }} 条，请打开材料窗口查看。</p>
             </div>
             <div v-if="selectedRun.status === 'awaiting_clarification' && selectedRun.review?.options?.length" class="explore-review-options">
@@ -599,50 +664,60 @@ function onFilesKeydown(event) {
             <p v-if="selectedRun.status === 'awaiting_review'" class="explore-review-hint">请先打开上方材料窗口核对摘录与来源，可取消勾选不适合用于报告的材料。全部取消后不能生成报告；修改问题后请先重新检索。</p>
           </section>
 
-          <section v-if="!selectedReport && !isActive && selectedRun.retrieval" class="explore-report-section" data-testid="explore-retrieval"><span class="explore-section-kicker">RETRIEVAL</span><h3>本次检索</h3><p class="explore-source-note">记录本次实际搜索的关键词、时间范围和结果；搜索摘要与快讯摘录不等于全文，检索完成不代表内容已证实。</p><p v-if="!retrievalSearches(selectedRun).length">本次没有保存联网搜索记录。</p><ul v-else class="explore-searches"><li v-for="(search, index) in retrievalSearches(selectedRun)" :key="index"><div class="explore-search-heading"><strong>{{ search.query || '搜索词未知' }}</strong><span :class="'state-' + search.status">{{ searchStatusLabel(search.status) }}</span></div><small>范围：{{ searchFreshnessLabel(search.freshness) }} · 搜索：{{ displayTime(search.searched_at) }} · 返回：{{ Number.isInteger(search.count) && search.count >= 0 ? search.count + ' 条' : '未知' }}</small><p v-if="['failed', 'error'].includes(search.status)">本次检索未成功，可查看已取得的其他材料。</p></li></ul></section>
+          <section v-if="!aiFailure && !eventInitial && !selectedReport && !isActive && selectedRun.retrieval && (!liteContextRun || retrievalSearches(selectedRun).length)" class="explore-report-section" data-testid="explore-retrieval"><span class="explore-section-kicker">RETRIEVAL</span><h3>本次检索</h3><p class="explore-source-note">记录本次实际搜索的关键词、时间范围和结果；搜索摘要与快讯摘录不等于全文，检索完成不代表内容已证实。</p><p v-if="!retrievalSearches(selectedRun).length">本次没有保存联网搜索记录。</p><ul v-else class="explore-searches"><li v-for="(search, index) in retrievalSearches(selectedRun)" :key="index"><div class="explore-search-heading"><strong>{{ search.query || '搜索词未知' }}</strong><span :class="'state-' + search.status">{{ searchStatusLabel(search.status) }}</span></div><small>范围：{{ searchFreshnessLabel(search.freshness) }} · 搜索：{{ displayTime(search.searched_at) }} · 返回：{{ Number.isInteger(search.count) && search.count >= 0 ? search.count + ' 条' : '未知' }}</small><p v-if="['failed', 'error'].includes(search.status)">本次检索未成功，可查看已取得的其他材料。</p></li></ul></section>
 
-          <section v-if="selectedRun.status === 'awaiting_input'" class="explore-awaiting"><span class="explore-section-kicker">判断确认</span><h3>先确认要验证的判断</h3><p>当前输入只描述了事件。请修改下方判断，确认后才会检索历史材料并调用模型。</p><label for="explore-judgment">待验证判断</label><textarea id="explore-judgment" v-model="state.judgment" data-testid="explore-judgment" rows="3" maxlength="5000" /><div class="explore-action-row"><button class="primary-button" data-testid="explore-confirm-judgment" type="button" :disabled="!state.judgment.trim() || state.actionBusy" @click="confirmJudgment">确认并开始验证</button><button class="secondary-button" type="button" :disabled="state.actionBusy" @click="cancel">取消本次分析</button></div></section>
+          <section v-if="selectedRun.status === 'awaiting_input' && !sessionClosed" class="explore-awaiting"><span class="explore-section-kicker">判断确认</span><h3>先确认要验证的判断</h3><p>当前输入只描述了事件。请修改下方判断，确认后才会检索历史材料并调用模型。</p><label for="explore-judgment">待验证判断</label><textarea id="explore-judgment" v-model="state.judgment" data-testid="explore-judgment" rows="3" maxlength="5000" /><div class="explore-action-row"><button class="primary-button" data-testid="explore-confirm-judgment" type="button" :disabled="!state.judgment.trim() || state.actionBusy" @click="confirmJudgment">确认并开始验证</button><button class="secondary-button" type="button" :disabled="state.actionBusy" @click="cancel">取消本次分析</button></div></section>
 
-          <section v-if="['failed', 'cancelled', 'interrupted'].includes(selectedRun.status)" class="explore-result-error"><h3>{{ statusTitle }}</h3><p>{{ selectedRun.error || (selectedRun.status === 'interrupted' ? '服务进程中断。此记录不会自动重跑。' : '本次没有生成可交付报告。') }}</p><button class="secondary-button" data-testid="explore-retry" type="button" :disabled="state.actionBusy" @click="retry">新建记录并重试</button></section>
+          <section v-if="aiFailure" class="explore-result-error" data-testid="explore-ai-failure" role="alert"><p>{{ AI_FAILURE_MESSAGE }}</p><button v-if="!sessionClosed && ['failed', 'interrupted'].includes(selectedRun.status)" class="secondary-button" data-testid="explore-retry" type="button" :disabled="state.actionBusy" @click="retry">新建记录并重试</button></section>
+          <section v-else-if="selectedRun.status === 'cancelled'" class="explore-result-error"><h3>{{ statusTitle }}</h3><p>{{ selectedRun.error || '已取消本次分析。' }}</p><button v-if="!sessionClosed" class="secondary-button" data-testid="explore-retry" type="button" :disabled="state.actionBusy" @click="retry">新建记录并重试</button></section>
 
-          <div v-if="selectedReport" class="explore-report-body" data-testid="explore-report">
+          <div v-if="selectedReport && !aiFailure" class="explore-report-body" data-testid="explore-report">
+            <p v-if="liteDeepReport && (selectedReport.completion_warning || selectedReport.report_variant === 'generation_fallback')" class="explore-report-warning" role="status">{{ AI_FAILURE_MESSAGE }}</p>
             <section class="explore-report-section explore-summary" data-testid="explore-summary"><span class="explore-section-kicker">研究发现</span><button v-if="!briefReport" class="explore-analysis-jump" type="button" @click="jumpToAnalysis">阅读正文 ↓</button><h3>核心发现</h3><div v-if="!briefReport" class="explore-markdown" v-html="safeMarkdown(selectedReport.summary)" /><ul v-if="selectedReport.key_findings?.length" class="explore-finding-list"><li v-for="(finding, index) in selectedReport.key_findings" :key="index"><span>0{{ index + 1 }}</span><div v-html="safeMarkdown(finding)" /></li></ul><p v-if="briefCoverageNote" class="explore-source-note" data-testid="explore-event-gap">{{ briefCoverageNote }}</p></section>
-            <section v-if="!briefReport" class="explore-report-section explore-boundary" data-testid="explore-uncertainties"><h3>重要不确定性</h3><ul v-if="selectedReport.uncertainties?.length" class="explore-simple-list"><li v-for="(item, index) in selectedReport.uncertainties" :key="index" v-html="safeMarkdown(item)" /></ul><p v-else>报告未单列重要不确定性；请结合信息缺口阅读。</p></section>
-            <section v-if="!briefReport" class="explore-report-section explore-boundary explore-limitations" data-testid="explore-limitations"><h3>信息缺口与限制</h3><ul v-if="selectedReport.limitations?.length" class="explore-simple-list"><li v-for="(item, index) in selectedReport.limitations" :key="index" v-html="safeMarkdown(item)" /></ul><p v-else>报告未提供额外限制说明。</p></section>
-            <section v-if="!briefReport && (selectedReport.event_overview || selectedReport.background || selectedReport.actors?.length || selectedReport.drivers?.length || selectedReport.impact_paths?.length)" class="explore-report-section"><span class="explore-section-kicker">事件解读</span><h3>事件、背景与影响路径</h3><div v-if="selectedReport.event_overview" class="explore-detail-block"><h4>事件概述</h4><div class="explore-markdown" v-html="safeMarkdown(selectedReport.event_overview)" /></div><div v-if="selectedReport.background" class="explore-detail-block"><h4>背景</h4><div class="explore-markdown" v-html="safeMarkdown(selectedReport.background)" /></div><div v-if="selectedReport.actors?.length" class="explore-detail-block"><h4>重要主体</h4><ul class="explore-simple-list"><li v-for="(actor, index) in selectedReport.actors" :key="index" v-html="safeMarkdown(actor)" /></ul></div><div v-if="selectedReport.drivers?.length" class="explore-detail-block"><h4>动因与解释</h4><ul class="explore-simple-list"><li v-for="(driver, index) in selectedReport.drivers" :key="index" v-html="safeMarkdown(driver)" /></ul></div><div v-if="selectedReport.impact_paths?.length" class="explore-detail-block"><h4>可能的影响路径</h4><ul class="explore-simple-list"><li v-for="(path, index) in selectedReport.impact_paths" :key="index" v-html="safeMarkdown(path)" /></ul></div></section>
-            <section v-if="!briefReport && selectedReport.entities?.length" class="explore-report-section"><span class="explore-section-kicker">研究主体</span><h3>涉及的主体</h3><ul class="explore-simple-list"><li v-for="(entity, index) in selectedReport.entities" :key="index" v-html="safeMarkdown(entity)" /></ul></section>
-            <section v-if="!briefReport && selectedReport.timeline?.length" class="explore-report-section"><span class="explore-section-kicker">事件脉络</span><h3>时间线</h3><ol class="explore-timeline"><li v-for="(item, index) in selectedReport.timeline" :key="index"><time :title="item.time || ''">{{ item.time ? displayTime(item.time) : '事件时间未知' }}</time><div><p>{{ item.event }} <ExploreSourceChip :ids="item.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></p></div></li></ol></section>
-            <section v-if="!briefReport && selectedReport.relations?.length" class="explore-report-section"><span class="explore-section-kicker">关系路径</span><h3>重要关联</h3><div class="explore-relation-layout"><div class="explore-relation-list"><button v-for="(item, index) in selectedReport.relations" :key="index" type="button" :class="{ selected: index === selectedRelationIndex }" @click="selectedRelationIndex = index"><strong>{{ item.from || '未知主体' }} → {{ item.to || '未知主体' }}</strong><small>{{ item.relation_type || item.direction || '关系待确认' }}</small></button></div><div v-if="selectedRelation" class="explore-relation-detail"><h4>{{ selectedRelation.from }} → {{ selectedRelation.to }}</h4><dl><dt>关系类型与方向</dt><dd>{{ selectedRelation.relation_type || '未知' }} · {{ selectedRelation.direction || '未知' }}</dd><dt>影响机制</dt><dd>{{ plain(selectedRelation.mechanism) || '未说明' }}</dd><dt>成立条件</dt><dd>{{ plain(selectedRelation.conditions) || '未说明' }} <ExploreSourceChip :ids="selectedRelation.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></dd></dl></div></div></section>
-            <section v-if="!briefReport && (selectedReport.cases?.length || selectedReport.judgment || selectedReport.conclusion)" class="explore-report-section"><span class="explore-section-kicker">历史案例</span><h3>判断与案例对照</h3><p v-if="selectedReport.judgment" class="explore-judgment-quote">待验证判断：{{ selectedReport.judgment }}</p><p v-if="selectedReport.mode === 'qualitative_no_market_validation'" class="explore-qualitative">定性对照，未进行行情验证。</p><div v-for="(item, index) in selectedReport.cases || []" :key="index" class="explore-case"><h4>{{ item.event || '历史案例' }}</h4><dl><dt>相似点</dt><dd>{{ plain(item.similarities) || '未说明' }}</dd><dt>关键差异</dt><dd>{{ plain(item.differences) || '未说明' }}</dd><dt>可能支持的条件</dt><dd>{{ plain(item.supporting_conditions) || '未说明' }}</dd><dt>可能失效的条件</dt><dd>{{ plain(item.failure_conditions) || '未说明' }} <ExploreSourceChip :ids="item.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></dd></dl></div><div v-if="selectedReport.conclusion" class="explore-detail-block"><h4>对当前判断的结论</h4><div class="explore-markdown" v-html="safeMarkdown(selectedReport.conclusion)" /></div></section>
-            <section v-if="!briefReport && selectedReport.method_notes" class="explore-report-section"><h3>方法与适用范围</h3><div class="explore-markdown" v-html="safeMarkdown(selectedReport.method_notes)" /></section>
-            <section v-for="(section, index) in selectedReport.sections || []" :key="index" class="explore-report-section"><span class="explore-section-kicker">{{ briefReport ? '本轮核实' : `${String(index + 3).padStart(2, '0')} · 模块分析` }}</span><h3>{{ section.heading }}</h3><div class="explore-markdown explore-cited-prose"><div class="explore-cited-prose-body" v-html="safeMarkdown(section.body)" /><ExploreSourceChip :ids="section.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></div></section>
-            <ExploreRecommendations v-if="briefReport && selectedReport.recommendations?.length" :recommendations="selectedReport.recommendations" :report-id="selectedReport.id" :can-start-run="canStartRun" @run="runRecommendation" />
+            <section v-if="!briefReport && (!liteDeepReport || selectedReport.uncertainties?.length)" class="explore-report-section explore-boundary" data-testid="explore-uncertainties"><h3>重要不确定性</h3><ul v-if="selectedReport.uncertainties?.length" class="explore-simple-list"><li v-for="(item, index) in selectedReport.uncertainties" :key="index" v-html="safeMarkdown(item)" /></ul><p v-else>报告未单列重要不确定性；请结合信息缺口阅读。</p></section>
+            <section v-if="!briefReport && (!liteDeepReport || selectedReport.limitations?.length)" class="explore-report-section explore-boundary explore-limitations" data-testid="explore-limitations"><h3>信息缺口与限制</h3><ul v-if="selectedReport.limitations?.length" class="explore-simple-list"><li v-for="(item, index) in selectedReport.limitations" :key="index" v-html="safeMarkdown(item)" /></ul><p v-else>报告未提供额外限制说明。</p></section>
+            <section v-if="!briefReport && !liteDeepReport && (selectedReport.event_overview || selectedReport.background || selectedReport.actors?.length || selectedReport.drivers?.length || selectedReport.impact_paths?.length)" class="explore-report-section"><span class="explore-section-kicker">事件解读</span><h3>事件、背景与影响路径</h3><div v-if="selectedReport.event_overview" class="explore-detail-block"><h4>事件概述</h4><div class="explore-markdown" v-html="safeMarkdown(selectedReport.event_overview)" /></div><div v-if="selectedReport.background" class="explore-detail-block"><h4>背景</h4><div class="explore-markdown" v-html="safeMarkdown(selectedReport.background)" /></div><div v-if="selectedReport.actors?.length" class="explore-detail-block"><h4>重要主体</h4><ul class="explore-simple-list"><li v-for="(actor, index) in selectedReport.actors" :key="index" v-html="safeMarkdown(actor)" /></ul></div><div v-if="selectedReport.drivers?.length" class="explore-detail-block"><h4>动因与解释</h4><ul class="explore-simple-list"><li v-for="(driver, index) in selectedReport.drivers" :key="index" v-html="safeMarkdown(driver)" /></ul></div><div v-if="selectedReport.impact_paths?.length" class="explore-detail-block"><h4>可能的影响路径</h4><ul class="explore-simple-list"><li v-for="(path, index) in selectedReport.impact_paths" :key="index" v-html="safeMarkdown(path)" /></ul></div></section>
+            <section v-if="!briefReport && !liteDeepReport && selectedReport.entities?.length" class="explore-report-section"><span class="explore-section-kicker">研究主体</span><h3>涉及的主体</h3><ul class="explore-simple-list"><li v-for="(entity, index) in selectedReport.entities" :key="index" v-html="safeMarkdown(entity)" /></ul></section>
+            <section v-if="!briefReport && !liteDeepReport && selectedReport.timeline?.length" class="explore-report-section"><span class="explore-section-kicker">事件脉络</span><h3>时间线</h3><ol class="explore-timeline"><li v-for="(item, index) in selectedReport.timeline" :key="index"><time :title="item.time || ''">{{ item.time ? displayTime(item.time) : '事件时间未知' }}</time><div><p>{{ item.event }} <ExploreSourceChip :ids="item.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></p></div></li></ol></section>
+            <section v-if="!briefReport && !liteDeepReport && selectedReport.relations?.length" class="explore-report-section"><span class="explore-section-kicker">关系路径</span><h3>重要关联</h3><div class="explore-relation-layout"><div class="explore-relation-list"><button v-for="(item, index) in selectedReport.relations" :key="index" type="button" :class="{ selected: index === selectedRelationIndex }" @click="selectedRelationIndex = index"><strong>{{ item.from || '未知主体' }} → {{ item.to || '未知主体' }}</strong><small>{{ item.relation_type || item.direction || '关系待确认' }}</small></button></div><div v-if="selectedRelation" class="explore-relation-detail"><h4>{{ selectedRelation.from }} → {{ selectedRelation.to }}</h4><dl><dt>关系类型与方向</dt><dd>{{ selectedRelation.relation_type || '未知' }} · {{ selectedRelation.direction || '未知' }}</dd><dt>影响机制</dt><dd>{{ plain(selectedRelation.mechanism) || '未说明' }}</dd><dt>成立条件</dt><dd>{{ plain(selectedRelation.conditions) || '未说明' }} <ExploreSourceChip :ids="selectedRelation.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></dd></dl></div></div></section>
+            <section v-if="!briefReport && !liteDeepReport && (selectedReport.cases?.length || selectedReport.judgment || selectedReport.conclusion)" class="explore-report-section"><span class="explore-section-kicker">历史案例</span><h3>判断与案例对照</h3><p v-if="selectedReport.judgment" class="explore-judgment-quote">待验证判断：{{ selectedReport.judgment }}</p><p v-if="selectedReport.mode === 'qualitative_no_market_validation'" class="explore-qualitative">定性对照，未进行行情验证。</p><div v-for="(item, index) in selectedReport.cases || []" :key="index" class="explore-case"><h4>{{ item.event || '历史案例' }}</h4><dl><dt>相似点</dt><dd>{{ plain(item.similarities) || '未说明' }}</dd><dt>关键差异</dt><dd>{{ plain(item.differences) || '未说明' }}</dd><dt>可能支持的条件</dt><dd>{{ plain(item.supporting_conditions) || '未说明' }}</dd><dt>可能失效的条件</dt><dd>{{ plain(item.failure_conditions) || '未说明' }} <ExploreSourceChip :ids="item.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></dd></dl></div><div v-if="selectedReport.conclusion" class="explore-detail-block"><h4>对当前判断的结论</h4><div class="explore-markdown" v-html="safeMarkdown(selectedReport.conclusion)" /></div></section>
+            <section v-if="!briefReport && !liteDeepReport && selectedReport.method_notes" class="explore-report-section"><h3>方法与适用范围</h3><div class="explore-markdown" v-html="safeMarkdown(selectedReport.method_notes)" /></section>
+            <section v-for="(section, index) in selectedReport.sections || []" :key="index" class="explore-report-section"><span class="explore-section-kicker">{{ briefReport ? '本轮核实' : liteDeepReport ? `${String(index + 3).padStart(2, '0')} · 分析` : `${String(index + 3).padStart(2, '0')} · 模块分析` }}</span><h3>{{ section.heading }}</h3><div class="explore-markdown explore-cited-prose"><div class="explore-cited-prose-body" v-html="safeMarkdown(section.body)" /><ExploreSourceChip :ids="section.source_refs" :sources="reportSources(selectedReport)" @open="openCitationSources" /></div></section>
+            <ExploreRecommendations v-if="briefReport && selectedReport.recommendations?.length && !sessionClosed" :recommendations="selectedReport.recommendations" :report-id="selectedReport.id" :can-start-run="canStartRun" @run="runRecommendation" />
 
             <details class="explore-report-section explore-retrieval-details" data-testid="explore-retrieval"><summary>检索详情</summary><p class="explore-source-note">记录本次实际使用的搜索词、范围与返回数量；检索完成不代表资料内容已经证实。</p><p v-if="!selectedReport.retrieval && !selectedRun.retrieval">这份报告未保存联网搜索过程记录。</p><p v-else-if="!retrievalSearches(selectedReport.retrieval ? selectedReport : selectedRun).length">本次没有保存联网搜索记录。</p><ul v-else class="explore-searches"><li v-for="(search, index) in retrievalSearches(selectedReport.retrieval ? selectedReport : selectedRun)" :key="index"><div class="explore-search-heading"><strong>{{ search.query || '搜索词未知' }}</strong><span :class="'state-' + search.status">{{ searchStatusLabel(search.status) }}</span></div><small>范围：{{ searchFreshnessLabel(search.freshness) }} · 搜索：{{ displayTime(search.searched_at) }} · 返回：{{ Number.isInteger(search.count) && search.count >= 0 ? search.count + ' 条' : '未知' }}</small><p v-if="['failed', 'error'].includes(search.status)">本次检索未成功，可查看已取得的其他材料。</p></li></ul></details>
-            <section class="explore-report-section" data-testid="explore-sources"><span class="explore-section-kicker">EVIDENCE</span><h3>本次来源</h3><p class="explore-source-note">以下是本次运行实际保存的材料；发布时间未知时会明确标注，不能由检索时间推断资料已验证。</p><p v-if="!reportSources(selectedReport).length">本报告没有可展示的外部来源。</p><ol v-else class="explore-sources"><li v-for="source in reportSources(selectedReport)" :id="sourceDomId(source.id)" :key="source.id"><span class="explore-source-number">{{ source.id }}</span><div><strong>{{ sourceLabel(source) }}</strong><p>{{ source.summary || '未提供摘录' }}</p><small>类型：{{ sourceKindLabel(source.kind) }} · 提供方：{{ source.source_name || source.source || '未知' }} · 发布时间：{{ displayTime(source.published_at) }} · 检索时间：{{ displayTime(source.retrieved_at) }}</small><a v-if="safeSourceUrl(source.url)" :href="safeSourceUrl(source.url)" target="_blank" rel="noopener noreferrer">查看原始来源 ↗</a><span v-else class="explore-source-unavailable">无可安全打开的原始链接</span></div></li></ol></section>
-            <ExploreRecommendations v-if="!briefReport && selectedReport.recommendations?.length" :recommendations="selectedReport.recommendations" :report-id="selectedReport.id" :can-start-run="canStartRun" @run="runRecommendation" />
-            <div class="explore-report-actions"><button class="secondary-button" type="button" @click="useReportAsSource">基于这份报告继续</button><button class="secondary-button" data-testid="explore-regenerate" type="button" :disabled="state.actionBusy" @click="regenerate">重新生成</button><button class="primary-button" data-testid="explore-download" type="button" :disabled="state.actionBusy" @click="download">下载 Markdown</button></div>
+            <div class="explore-report-sources" data-testid="explore-sources">
+              <button class="explore-sources-trigger" data-testid="explore-open-sources" type="button" title="查看本次来源" aria-label="查看本次来源" aria-haspopup="dialog" :aria-expanded="materialsOpen && sourcesView" :disabled="!reportSources(selectedReport).length" @click="openReportSources">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.5c-2.3-2-5.6-2.4-9-1v15c3.4-1.4 6.7-1 9 1 2.3-2 5.6-2.4 9-1v-15c-3.4-1.4-6.7-1-9 1Z"/><path d="M12 5.5v15M6 7.5c1.2-.2 2.2 0 3 .5M6 11c1.2-.2 2.2 0 3 .5M15 8c.8-.5 1.8-.7 3-.5M15 11.5c.8-.5 1.8-.7 3-.5"/></svg>
+                <span>来源</span><span class="explore-sources-trigger-count">{{ reportSources(selectedReport).length }}</span>
+              </button>
+            </div>
+            <ExploreRecommendations v-if="liteChoicePending" :recommendations="liteRecommendations" :report-id="selectedReport.id" :can-start-run="canChooseLiteRecommendation" :can-finish="!state.actionBusy && !state.submitting" :failure-presentation="recommendationsUnavailable" final-choice @run="runRecommendation" @finish="finishAnalysis" />
+            <p v-else-if="choiceReport && selectedRun.next_step_state === 'continued' && !sessionClosed" class="explore-next-state" data-testid="explore-event-continued">已从这份报告开启新的探索。请在左侧研究历史中查看。</p>
+            <ExploreRecommendations v-if="!briefReport && !choiceReport && selectedReport.recommendations?.length && !sessionClosed" :recommendations="selectedReport.recommendations" :report-id="selectedReport.id" :can-start-run="canStartRun" @run="runRecommendation" />
+            <div class="explore-report-actions"><button v-if="!sessionClosed && !choiceReport" class="secondary-button" type="button" @click="useReportAsSource">基于这份报告继续</button><button v-if="!sessionClosed && !choiceReport" class="secondary-button" data-testid="explore-regenerate" type="button" :disabled="state.actionBusy" @click="regenerate">重新生成</button><button class="primary-button" data-testid="explore-download" type="button" :disabled="state.actionBusy" @click="download">下载 Markdown</button></div>
           </div>
-          <details v-if="selectedRun.context_selection || contextFiles(selectedRun).length || selectedRun.context_limitations?.length" class="explore-report-section explore-used-context" data-testid="explore-context-used"><summary>本次实际使用的文件 · {{ contextFiles(selectedRun).length }}</summary>
-            <span class="explore-section-kicker">RESEARCH CONTEXT · 创建时快照</span><h3>本次实际使用的文件</h3>
+          <ExploreRecommendations v-if="aiFailure && liteChoicePending" :recommendations="liteRecommendations" :report-id="selectedReport.id" :can-start-run="canChooseLiteRecommendation" :can-finish="!state.actionBusy && !state.submitting" final-choice failure-presentation @run="runRecommendation" @finish="finishAnalysis" />
+          <details v-if="!aiFailure && !eventInitial && (selectedRun.context_selection || contextFiles(selectedRun).length || selectedRun.context_limitations?.length)" class="explore-report-section explore-used-context" data-testid="explore-context-used"><summary>{{ liteContextRun ? '本轮选择的参考文件' : '本次实际使用的文件' }} · {{ contextFiles(selectedRun).length }}</summary>
+            <span class="explore-section-kicker">RESEARCH CONTEXT · 创建时快照</span><h3>{{ liteContextRun ? '本轮选择的参考文件' : '本次实际使用的文件' }}</h3>
+            <p v-if="liteContextRun">这是创建本轮记录时保存的文件选择；下方摘录不代表本轮已读取文件全文。</p>
             <p>方式：{{ selectedRun.context_selection?.mode === 'manual' ? '自选文件' : '自动沿当前报告分支' }} · {{ contextFiles(selectedRun).length }} 个文件</p>
-            <p v-if="!contextFiles(selectedRun).length">本次未加入文件池中的材料。联网检索与本次材料另见下方记录。</p>
-            <ul v-else class="explore-context-used-list"><li v-for="item in contextFiles(selectedRun)" :key="item.file_id"><strong>{{ item.name || item.file_id }}</strong><small>{{ fileKindLabel(item.kind) }} · {{ fileOriginLabel(item.origin) }} · 实际使用 {{ item.used_chars ?? '未知' }} / {{ item.original_chars ?? '未知' }} 字<span v-if="item.truncated"> · 已截断</span></small><p v-if="item.reason">{{ item.reason }}</p><pre v-if="item.content_excerpt" tabindex="0">{{ item.content_excerpt }}</pre></li></ul>
+            <p v-if="!contextFiles(selectedRun).length">{{ liteContextRun ? '本轮没有选入参考文件。' : '本次未加入文件池中的材料。联网检索与本次材料另见下方记录。' }}</p>
+            <ul v-else class="explore-context-used-list"><li v-for="item in contextFiles(selectedRun)" :key="item.file_id"><strong>{{ sourceDisplayText(item.name) || item.file_id }}</strong><small>{{ fileKindLabel(item.kind) }} · {{ fileOriginLabel(item.origin) }} · {{ liteContextRun ? '保存摘录' : '实际使用' }} {{ item.used_chars ?? '未知' }} / {{ item.original_chars ?? '未知' }} 字<span v-if="item.truncated"> · 已截断</span></small><p v-if="item.reason">{{ item.reason }}</p><pre v-if="item.content_excerpt" tabindex="0">{{ sourceBodyText(item, item.content_excerpt) }}</pre></li></ul>
             <ul v-if="selectedRun.context_limitations?.length" class="explore-review-limitations"><li v-for="(item, index) in selectedRun.context_limitations" :key="index">{{ item }}</li></ul>
           </details>
         </article>
       </main>
 
-      <div class="explore-compose-zone" @beforeinput="stopComposerMotion" @compositionstart="stopComposerMotion">
-        <ExploreComposer ref="input" :state="state" :is-active="isActive" :can-submit="canSubmit" :current-context="currentContext" :selected-context-count="selectedContextFiles.length" :motion-paused="effectivePaused" :scene="scene" @submit="submitWithFeedback" @open-files="openFiles" @update:module="state.module = $event" @update:draft="state.draft = $event" />
-        <div v-if="state.contextError" class="explore-context-error" role="alert">{{ state.contextError }} <button v-if="!state.contextLoaded && state.session" type="button" @click="loadContexts()">重试读取文件选择</button></div>
+      <div v-if="showComposer" class="explore-compose-zone" @beforeinput="stopComposerMotion" @compositionstart="stopComposerMotion">
+        <ExploreComposer ref="input" :state="state" :is-active="isActive" :can-submit="canSubmit" :current-context="currentContext" :selected-context-count="selectedContextFiles.length" :motion-paused="effectivePaused" :scene="scene" @submit="submitWithFeedback" @open-files="openFiles" @update:module="state.module = $event" @update:model="setModel" @update:draft="state.draft = $event" />
       </div>
-      <div v-if="!selectedRun && !state.loading && !state.loadingSession" class="explore-entry-suggestions" :class="{ 'submit-leaving': submitPending }" data-testid="explore-entry-suggestions"><div class="explore-example-pills"><button v-for="item in exampleQuestions" :key="item.id" :data-module="item.id" type="button" @click="chooseExample(item)">{{ item.label }} <span aria-hidden="true">↗</span></button></div><p>选择模板，补充你想研究的内容。</p></div>
+      <div v-if="showComposer && !selectedRun && !state.loading && !state.loadingSession" class="explore-entry-suggestions" :class="{ 'submit-leaving': submitPending }" data-testid="explore-entry-suggestions"><div class="explore-example-pills"><button v-for="item in exampleQuestions" :key="item.id" :data-module="item.id" type="button" @click="chooseExample(item)">{{ item.label }} <span aria-hidden="true">↗</span></button></div><p>选择模板，补充你想研究的内容。</p></div>
     </div>
     <Teleport to="body">
       <div v-if="menuSession && !sessionActionOpen" ref="sessionMenu" class="explore-theme explore-session-menu" :style="sessionMenuStyle" data-testid="explore-session-menu" role="menu" :aria-label="'探索操作：' + (menuSession.title || '未命名探索')" @keydown="onSessionMenuKeydown">
-        <button data-testid="explore-session-rename" role="menuitem" type="button" @click="openSessionAction('rename')">重命名</button>
-        <button data-testid="explore-session-delete" role="menuitem" type="button" @click="openSessionAction('delete')">删除</button>
+        <button v-if="!menuSession.closed_at" data-testid="explore-session-rename" role="menuitem" type="button" @click="openSessionAction('rename')">重命名</button>
+        <button v-if="!menuSession.closed_at" data-testid="explore-session-delete" role="menuitem" type="button" @click="openSessionAction('delete')">删除</button>
       </div>
       <div v-if="sessionActionModalOpen" class="explore-theme explore-session-overlay" @click.self="cancelSessionDialog">
         <section ref="sessionDialog" class="explore-session-dialog" :data-testid="state.renameOpen ? 'explore-rename-dialog' : 'explore-delete-dialog'" :role="state.deleteOpen ? 'alertdialog' : 'dialog'" aria-modal="true" :aria-labelledby="state.renameOpen ? 'explore-rename-title' : 'explore-delete-title'" @keydown="onSessionDialogKeydown">
@@ -666,61 +741,74 @@ function onFilesKeydown(event) {
         </section>
       </div>
       <Transition name="explore-drawer"><div v-if="materialsOpen" class="explore-theme explore-materials-overlay" :class="{ 'motion-paused': effectivePaused }" @click.self="closeMaterials">
-        <section ref="materialsDialog" class="explore-materials-dialog" data-testid="explore-materials" role="dialog" aria-modal="true" aria-labelledby="explore-materials-title" @keydown="onMaterialsKeydown">
-          <header class="explore-materials-head"><div><span class="explore-overline">SOURCE REVIEW</span><h2 id="explore-materials-title">{{ citationSourceIds.length ? '本段来源' : '本次检索材料' }}</h2></div><button ref="materialsClose" class="explore-materials-close" data-testid="explore-materials-close" type="button" aria-label="关闭材料窗口" @click="closeMaterials">×</button></header>
+        <section ref="materialsDialog" class="explore-materials-dialog" :class="{ 'explore-sources-dialog': sourcesView }" data-testid="explore-materials" role="dialog" aria-modal="true" aria-labelledby="explore-materials-title" @keydown="onMaterialsKeydown">
+          <header class="explore-materials-head"><div><span v-if="!sourcesView" class="explore-overline">SOURCE REVIEW</span><h2 id="explore-materials-title">{{ sourcesView ? '来源' : citationSourceIds.length ? '本段来源' : '本次检索材料' }}</h2></div><button ref="materialsClose" class="explore-materials-close" data-testid="explore-materials-close" type="button" :aria-label="sourcesView ? '关闭来源' : '关闭材料窗口'" @click="closeMaterials">×</button></header>
+          <div v-if="sourcesView" class="explore-materials-scroll explore-source-list" data-testid="explore-source-list">
+            <p class="explore-source-list-count">本次来源 · {{ reportSources(selectedReport).length }}</p>
+            <article v-for="source in reportSources(selectedReport)" :key="source.id" class="explore-source-preview">
+              <p class="explore-source-preview-provider">{{ sourceDisplayText(source.source_name || source.source) || '未知来源' }}</p>
+              <h3><a v-if="safeSourceUrl(source.url)" :href="safeSourceUrl(source.url)" target="_blank" rel="noopener noreferrer">{{ sourceDisplayText(sourceLabel(source)) }}</a><template v-else>{{ sourceDisplayText(sourceLabel(source)) }}</template></h3>
+              <time class="explore-source-preview-meta" :datetime="source.published_at || undefined">发布时间：{{ displayTime(source.published_at) }}</time>
+              <p class="explore-source-preview-excerpt">{{ sourceBodyText(source, source.summary) || '未提供摘录' }}</p>
+            </article>
+          </div>
+          <template v-else>
           <p class="explore-materials-intro">以下是本次检索保存、用于问题判断的材料文本；报告实际引用的材料以已保存来源记录为准。搜索摘要和快讯摘录不是全文，发布时间未知时不会用检索时间代替。</p>
           <p v-if="selectedRun?.status === 'awaiting_review'" class="explore-materials-count">已选择 {{ state.selectedSourceIds.length }} / {{ materials.length }} 条材料。取消不适合用于报告的材料后，关闭窗口并确认。</p>
           <div v-else-if="citationSourceIds.length" class="explore-citation-scope"><span>本段引用 {{ citationSourceIds.length }} 条来源</span><button type="button" data-testid="explore-all-materials" @click="showAllMaterials">查看全部材料 ↗</button></div>
           <p v-else-if="selectedReport" class="explore-materials-count">报告记录使用 {{ confirmedMaterials.length }} 条材料；此处为只读记录。</p>
           <div class="explore-materials-scroll">
             <article v-for="item in visibleDrawerMaterials" :id="`drawer-${sourceDomId(item.id)}`" :key="item.id" class="explore-material-card" :class="{ 'source-highlight': highlightedSource === String(item.id) }">
-              <div class="explore-material-title"><label v-if="selectedRun?.status === 'awaiting_review'"><input data-testid="explore-materials-select" type="checkbox" :aria-label="'用于报告：' + sourceLabel(item)" :checked="state.selectedSourceIds.includes(String(item.id))" @change="toggleMaterial(item.id, $event.target.checked)" /><span class="explore-source-number">{{ item.id }}</span></label><span v-else class="explore-source-number">{{ item.id }}<span v-if="confirmedMaterials.includes(String(item.id))"> · 已用于报告</span></span><h3>{{ sourceLabel(item) }}</h3></div>
+              <div class="explore-material-title"><label v-if="selectedRun?.status === 'awaiting_review'"><input data-testid="explore-materials-select" type="checkbox" :aria-label="'用于报告：' + sourceDisplayText(sourceLabel(item))" :checked="state.selectedSourceIds.includes(String(item.id))" @change="toggleMaterial(item.id, $event.target.checked)" /><span class="explore-source-number">{{ item.id }}</span></label><span v-else class="explore-source-number">{{ item.id }}<span v-if="confirmedMaterials.includes(String(item.id))"> · 已用于报告</span></span><h3>{{ sourceDisplayText(sourceLabel(item)) }}</h3></div>
               <p class="explore-material-kind">{{ sourceKindLabel(item.kind) }} · {{ materialContentLabel(item.content_kind) }}</p>
-              <p class="explore-material-meta">提供方：{{ item.source_name || item.source || '未知' }} · 发布时间：{{ displayTime(item.published_at) }} · 检索时间：{{ displayTime(item.retrieved_at) }}</p>
+              <p class="explore-material-meta">提供方：{{ sourceDisplayText(item.source_name || item.source) || '未知' }} · 发布时间：{{ displayTime(item.published_at) }} · 检索时间：{{ displayTime(item.retrieved_at) }}</p>
               <a v-if="safeSourceUrl(item.url)" :href="safeSourceUrl(item.url)" target="_blank" rel="noopener noreferrer">查看原始来源 ↗</a><span v-else class="explore-source-unavailable">无可安全打开的原始链接</span>
-              <div v-if="sourceSupports(selectedReport, item.id).length" class="explore-source-supports"><div v-for="support in sourceSupports(selectedReport, item.id)" :key="support.key"><h4>研究记录中的关联主张</h4><p>{{ support.claimText }}</p><small>{{ claimTypeLabel(support.claimType) }} · {{ claimSupportLabel(support.supportStatus) }}；关联不代表已被报告采用</small><span v-if="support.backgroundOnly">仅作为背景材料</span><blockquote v-if="support.quote">{{ support.quote }}</blockquote><small v-else>未保存精确引用片段；以下为已保存的使用文本。</small></div></div>
+              <div v-if="sourceSupports(selectedReport, item.id).length" class="explore-source-supports"><div v-for="support in sourceSupports(selectedReport, item.id)" :key="support.key"><h4>研究记录中的关联主张</h4><p>{{ sourceDisplayText(support.claimText) }}</p><small>{{ claimTypeLabel(support.claimType) }} · {{ claimSupportLabel(support.supportStatus) }}；关联不代表已被报告采用</small><span v-if="support.backgroundOnly">仅作为背景材料</span><blockquote v-if="support.quote">{{ sourceDisplayText(support.quote) }}</blockquote><small v-else>未保存精确引用片段；以下为已保存的使用文本。</small></div></div>
               <p v-else-if="selectedReport" class="explore-source-note">未保存句子级引用定位；此处展示该来源的已保存文本范围。</p>
               <div class="explore-material-text-label">{{ item.report_used_text ? '报告保存的使用文本' : '本次检索保存的文本' }}<span v-if="item.evidence_usage === 'retrieved_only'"> · 未用于本报告</span></div>
-              <pre class="explore-material-text" tabindex="0" :aria-label="'材料 ' + item.id + ' 的已保存文本'">{{ item.text_used || '未保存可展示的材料文本' }}</pre>
-              <details v-if="item.retrieved_text && item.retrieved_text !== item.text_used"><summary>查看检索时保存的材料</summary><pre class="explore-material-text" tabindex="0">{{ item.retrieved_text }}</pre></details>
+              <pre class="explore-material-text" tabindex="0" :aria-label="'材料 ' + item.id + ' 的已保存文本'">{{ sourceBodyText(item, item.text_used) || '未保存可展示的材料文本' }}</pre>
+              <details v-if="item.retrieved_text && item.retrieved_text !== item.text_used"><summary>查看检索时保存的材料</summary><pre class="explore-material-text" tabindex="0">{{ sourceBodyText(item, item.retrieved_text) }}</pre></details>
             </article>
           </div>
-          <footer class="explore-materials-foot"><button class="primary-button" type="button" @click="closeMaterials">{{ selectedRun?.status === 'awaiting_review' ? '完成材料选择' : '关闭' }}</button></footer>
+          </template>
+          <footer class="explore-materials-foot"><button v-if="sourcesView" class="secondary-button" data-testid="explore-source-details" type="button" @click="showAllMaterials">查看完整材料</button><button class="primary-button" type="button" @click="closeMaterials">{{ selectedRun?.status === 'awaiting_review' ? '完成材料选择' : '关闭' }}</button></footer>
         </section>
       </div>
       </Transition>
       <Transition name="explore-drawer"><div v-if="filesOpen" class="explore-theme explore-materials-overlay" :class="{ 'motion-paused': effectivePaused }" @click.self="closeFiles">
         <section ref="filesDialog" class="explore-materials-dialog explore-files-dialog" data-testid="explore-files-dialog" role="dialog" aria-modal="true" aria-labelledby="explore-files-title" @keydown="onFilesKeydown">
           <header class="explore-materials-head"><div><span class="explore-overline">SESSION FILES</span><h2 id="explore-files-title">当前探索的文件池</h2></div><button ref="filesClose" class="explore-materials-close" data-testid="explore-files-close" type="button" aria-label="关闭文件池" @click="closeFiles">×</button></header>
-          <p v-if="newFiles.length" class="explore-materials-count">本次访问已新增 {{ newFiles.length }} 个文件，最新：{{ newFiles[0]?.name }}</p>
-          <div class="explore-context-bar" data-testid="explore-context-control">
+          <p v-if="newFiles.length" class="explore-materials-count">本次访问已新增 {{ newFiles.length }} 个文件，最新：{{ sourceDisplayText(newFiles[0]?.name) }}</p>
+          <p v-if="sessionClosed" class="explore-file-readonly">本次探索已结束，文件池仅供查看与下载。</p>
+          <div v-if="!sessionClosed" class="explore-context-bar" data-testid="explore-context-control">
             <strong>{{ moduleTitle(state.module) }} · 参考材料</strong>
             <div class="explore-context-mode" role="group" aria-label="选择文件上下文方式"><button type="button" data-testid="explore-context-auto" :aria-pressed="currentContext.mode === 'auto'" :class="{ active: currentContext.mode === 'auto' }" :disabled="state.contextBusy || !state.contextLoaded || state.submitting" @click="setContextMode('auto')">自动</button><button type="button" data-testid="explore-context-manual" :aria-pressed="currentContext.mode === 'manual'" :class="{ active: currentContext.mode === 'manual' }" :disabled="state.contextBusy || !state.contextLoaded || state.submitting" @click="setContextMode('manual')">自选</button></div>
             <span v-if="currentContext.mode === 'manual'">已选 {{ selectedContextFiles.length }} / {{ maxContextFiles }} 个</span><span v-else>沿当前报告分支 · 预计 {{ Number.isInteger(state.contextPreview?.preview_files?.length) ? state.contextPreview.preview_files.length + ' 个' : '数量待确认' }}</span>
             <button v-if="contextDirty" data-testid="explore-context-save" type="button" :disabled="state.contextBusy || state.submitting || !state.contextLoaded" @click="saveContext">保存选择</button>
           </div>
-          <p class="explore-materials-intro">三个模块共享当前会话的材料与报告。搜索摘要、快讯摘录和模型报告各有明确标注；“自选”最多使用 {{ maxContextFiles }} 个文件。重命名和删除只影响今后的选择，旧报告的使用快照会保留。</p>
-          <div v-if="currentContext.mode === 'auto'" class="explore-auto-preview" data-testid="explore-auto-preview"><details v-if="state.contextPreview?.preview_files?.length"><summary>自动预计使用 {{ state.contextPreview.preview_files.length }} 个文件 · 查看清单</summary><ul><li v-for="file in state.contextPreview.preview_files" :key="file.id || file.file_id"><strong>{{ file.name || file.id || file.file_id }}</strong><small v-if="file.reason">{{ file.reason }}</small></li></ul></details><p v-else>自动模式：当前分支暂无可预览文件。</p></div>
+          <p class="explore-materials-intro">三个模块共享当前会话的材料与报告。搜索摘要、快讯摘录和模型报告各有明确标注；<template v-if="!sessionClosed">“自选”最多使用 {{ maxContextFiles }} 个文件。重命名和删除只影响今后的选择，旧报告的使用快照会保留。</template></p>
+          <div v-if="!sessionClosed && currentContext.mode === 'auto'" class="explore-auto-preview" data-testid="explore-auto-preview"><details v-if="state.contextPreview?.preview_files?.length"><summary>自动预计使用 {{ state.contextPreview.preview_files.length }} 个文件 · 查看清单</summary><ul><li v-for="file in state.contextPreview.preview_files" :key="file.id || file.file_id"><strong>{{ sourceDisplayText(file.name) || file.id || file.file_id }}</strong><small v-if="file.reason">{{ file.reason }}</small></li></ul></details><p v-else>自动模式：当前分支暂无可预览文件。</p></div>
           <div v-if="state.fileError" class="explore-files-error" role="alert">{{ state.fileError }}</div>
           <div class="explore-files-body">
             <div class="explore-files-list" data-testid="explore-file-list">
+              <ExploreMemory v-if="selectedRun?.memory_output || selectedRun?.memory_input" :key="selectedRun.id" :session-id="state.session?.id" :run="selectedRun" />
               <p v-if="state.filesLoading" role="status">正在读取文件…</p><p v-else-if="!state.files.length">当前会话还没有保存材料或报告。</p>
               <article v-for="file in state.files" :key="file.id" class="explore-file-item" :data-file-id="file.id" :class="{ selected: String(state.fileDetail?.id) === String(file.id) }">
-                <label v-if="currentContext.mode === 'manual'" class="explore-file-checkbox"><input type="checkbox" data-testid="explore-file-select" :aria-label="'加入' + moduleTitle(state.module) + '：' + file.name" :checked="currentContext.file_ids.includes(String(file.id))" :disabled="state.contextBusy || state.contextLoading || !state.contextLoaded || state.fileBusy || state.submitting" @change="toggleContextFile(file.id, $event.target.checked)" /></label>
-                <div><strong>{{ file.name || '未命名文件' }}</strong><small>{{ fileKindLabel(file.kind) }} · {{ fileOriginLabel(file.origin) }} · {{ file.size_chars ?? '未知' }} 字</small></div>
+                <label v-if="!sessionClosed && currentContext.mode === 'manual'" class="explore-file-checkbox"><input type="checkbox" data-testid="explore-file-select" :aria-label="'加入' + moduleTitle(state.module) + '：' + sourceDisplayText(file.name)" :checked="currentContext.file_ids.includes(String(file.id))" :disabled="state.contextBusy || state.contextLoading || !state.contextLoaded || state.fileBusy || state.submitting" @change="toggleContextFile(file.id, $event.target.checked)" /></label>
+                <div><strong>{{ sourceDisplayText(file.name) || '未命名文件' }}</strong><small>{{ fileKindLabel(file.kind) }} · {{ fileOriginLabel(file.origin) }} · {{ file.size_chars ?? '未知' }} 字</small></div>
                 <button type="button" data-testid="explore-file-view" :disabled="state.fileLoading" @click="openFile(file.id)">查看</button>
               </article>
             </div>
-            <div class="explore-files-detail" data-testid="explore-file-detail"><p v-if="state.fileLoading" role="status">正在读取文件正文…</p><p v-else-if="!state.fileDetail">选择文件查看正文、原始链接或管理文件。</p><template v-else>
-              <h3>{{ state.fileDetail.name }}</h3><p class="explore-material-kind">{{ fileKindLabel(state.fileDetail.kind) }} · {{ fileOriginLabel(state.fileDetail.origin) }} · {{ state.fileDetail.kind === 'report' ? 'AI 生成报告，并非原始来源' : materialContentLabel(state.fileDetail.content_kind) }}</p>
+            <div class="explore-files-detail" data-testid="explore-file-detail"><p v-if="state.fileLoading" role="status">正在读取文件正文…</p><p v-else-if="!state.fileDetail">{{ sessionClosed ? '选择文件查看正文、原始链接或下载。' : '选择文件查看正文、原始链接或管理文件。' }}</p><template v-else>
+              <h3>{{ sourceDisplayText(state.fileDetail.name) }}</h3><p class="explore-material-kind">{{ fileKindLabel(state.fileDetail.kind) }} · {{ fileOriginLabel(state.fileDetail.origin) }} · {{ state.fileDetail.kind === 'report' ? 'AI 生成报告，并非原始来源' : materialContentLabel(state.fileDetail.content_kind) }}</p>
               <p class="explore-material-meta">发布时间：{{ displayTime(state.fileDetail.published_at) }} · 检索时间：{{ displayTime(state.fileDetail.retrieved_at) }}</p>
               <a v-if="safeSourceUrl(state.fileDetail.url)" :href="safeSourceUrl(state.fileDetail.url)" target="_blank" rel="noopener noreferrer">查看原始来源 ↗</a><span v-else class="explore-source-unavailable">无可安全打开的原始链接</span>
-              <div class="explore-material-text-label">保存的文件正文</div><pre class="explore-material-text explore-file-content" tabindex="0">{{ state.fileDetail.content || '文件正文为空' }}</pre>
-              <div class="explore-file-operations"><label for="explore-file-name">文件名称</label><input id="explore-file-name" v-model="state.fileNameDraft" maxlength="120" /><button data-testid="explore-file-rename" type="button" :disabled="state.fileBusy || !state.fileNameDraft.trim() || state.fileNameDraft.trim() === state.fileDetail.name" @click="renameFile">保存名称</button><button data-testid="explore-file-download" type="button" @click="downloadFile()">下载</button><button class="explore-file-danger" type="button" :disabled="state.fileBusy" @click="state.fileDeleteOpen = true">移除</button></div>
-              <div v-if="state.fileDeleteOpen" class="explore-file-delete" role="alertdialog" aria-label="确认移除文件"><p>移除“{{ state.fileDetail.name }}”？它将从未来的模块自选中移除，旧分析的使用快照仍保留。</p><button data-testid="explore-file-remove" type="button" :disabled="state.fileBusy" @click="removeFile">确认移除</button><button type="button" @click="state.fileDeleteOpen = false">保留文件</button></div>
+              <div class="explore-material-text-label">保存的文件正文</div><pre class="explore-material-text explore-file-content" tabindex="0">{{ failedFilePreview ? AI_FAILURE_MESSAGE : sourceBodyText(state.fileDetail, state.fileDetail.content) || '文件正文为空' }}</pre>
+              <div class="explore-file-operations"><template v-if="!sessionClosed"><label for="explore-file-name">文件名称</label><input id="explore-file-name" v-model="state.fileNameDraft" maxlength="120" /><button data-testid="explore-file-rename" type="button" :disabled="state.fileBusy || !state.fileNameDraft.trim() || state.fileNameDraft.trim() === state.fileDetail.name" @click="renameFile">保存名称</button></template><button data-testid="explore-file-download" type="button" @click="downloadFile()">下载</button><button v-if="!sessionClosed" class="explore-file-danger" type="button" :disabled="state.fileBusy" @click="state.fileDeleteOpen = true">移除</button></div>
+              <div v-if="state.fileDeleteOpen && !sessionClosed" class="explore-file-delete" role="alertdialog" aria-label="确认移除文件"><p>移除“{{ sourceDisplayText(state.fileDetail.name) }}”？它将从未来的模块自选中移除，旧分析的使用快照仍保留。</p><button data-testid="explore-file-remove" type="button" :disabled="state.fileBusy" @click="removeFile">确认移除</button><button type="button" @click="state.fileDeleteOpen = false">保留文件</button></div>
             </template></div>
           </div>
-          <footer class="explore-materials-foot explore-files-foot"><span v-if="currentContext.mode === 'manual'">{{ moduleTitle(state.module) }}已选 {{ selectedContextFiles.length }} 个文件</span><span v-else>自动模式沿所选报告与必要祖先提取材料</span><button v-if="contextDirty" data-testid="explore-files-save-context" class="secondary-button" type="button" :disabled="state.contextBusy || state.fileBusy || !state.contextLoaded" @click="saveContext">保存本模块选择</button><button class="primary-button" data-testid="explore-files-done" type="button" :disabled="state.contextBusy || state.fileBusy" @click="finishFiles">完成</button></footer>
+          <footer class="explore-materials-foot explore-files-foot"><span v-if="sessionClosed">只读文件池</span><span v-else-if="currentContext.mode === 'manual'">{{ moduleTitle(state.module) }}已选 {{ selectedContextFiles.length }} 个文件</span><span v-else>自动模式沿所选报告与必要祖先提取材料</span><button v-if="contextDirty && !sessionClosed" data-testid="explore-files-save-context" class="secondary-button" type="button" :disabled="state.contextBusy || state.fileBusy || !state.contextLoaded" @click="saveContext">保存本模块选择</button><button class="primary-button" data-testid="explore-files-done" type="button" :disabled="state.contextBusy || state.fileBusy" @click="finishFiles">完成</button></footer>
         </section>
       </div>
       </Transition>

@@ -18,6 +18,12 @@ MAX_SOURCES = 8
 PROMPT_VERSIONS = {"event": "event@4", "relation": "relation@4", "history": "history@4"}
 
 
+def has_final_choice(report):
+    """Only reports produced with the explicit final-choice contract opt in."""
+    return (report.get("module"), report.get("report_format")) in {
+        ("event", "event_lite@2"), ("relation", "relation_lite@2"), ("history", "history_lite@1")}
+
+
 def nonempty(value, label, maximum=4000):
     if not isinstance(value, str) or not value.strip() or len(value) > maximum or "\x00" in value:
         raise GatewayError(f"{label}必须是非空文本，长度不超过 {maximum} 字符。", 400)
@@ -76,8 +82,26 @@ def parse_json_object(content):
     from ..agent_platform.planner import _json_object
     try:
         value = _json_object(body)
-    except GatewayError:
-        raise GatewayError("模型未返回有效的研究结构。", 502, "explore_invalid_model_output") from None
+    except GatewayError as cause:
+        # Keep acceptance identical to the shared parser. Persist only bounded
+        # metadata, never JSONDecodeError.doc or the model's response text.
+        detail = {"stage": "json_parse", "reason": "invalid_json"}
+        syntax = cause.__context__
+        if isinstance(syntax, json.JSONDecodeError):
+            detail.update(reason="syntax", position=syntax.pos, line=syntax.lineno,
+                          column=syntax.colno, coordinate_system="normalized_json",
+                          decoder_message=syntax.msg, response_chars=len(body))
+        else:
+            reasons = {
+                "模型 JSON 包含重复字段。": "duplicate_key",
+                "模型 JSON 包含非有限数值。": "non_finite_number",
+                "模型结果必须是 JSON 对象。": "not_object",
+                "模型 JSON 字符串包含不支持的控制字符。": "control_character",
+            }
+            detail["reason"] = reasons.get(str(cause), "invalid_json")
+        error = GatewayError("模型未返回有效的研究结构。", 502, "explore_invalid_model_output")
+        error.diagnostic = detail
+        raise error from None
     if not isinstance(value, dict):
         raise GatewayError("模型未返回研究对象。", 502, "explore_invalid_model_output")
     return value
@@ -153,7 +177,7 @@ def validate_intent(raw, materials):
 
 
 def validate_model_report(raw, module, sources, historical_source_ids, *, allow_incomplete=False,
-                          compact_event=False):
+                          compact_event=False, compact_history=False):
     """Allow only known source IDs and typed module fields; no repair model calls."""
     allowed = {item["id"] for item in sources}
     result = {
@@ -228,6 +252,10 @@ def validate_model_report(raw, module, sources, historical_source_ids, *, allow_
             if not relation["source_refs"]:
                 raise GatewayError("关系路径缺少可追溯来源。", 502, "explore_invalid_source_ref")
             result["relations"].append(relation)
+    elif module == "history" and compact_history:
+        # Historical relationship reports use the common sourced analysis
+        # sections, not the older hypothesis/case-validation contract.
+        result["conclusion"] = result["summary"]
     else:
         result["judgment"] = optional_text(raw.get("judgment"), "待验证判断", 1000)
         result["conclusion"] = optional_text(raw.get("conclusion"), "历史结论", 5000)
@@ -354,6 +382,41 @@ def _render_event_brief(report):
 
 
 def render_markdown(report):
+    if has_final_choice(report) or (report.get("module"), report.get("report_format")) == ("relation", "relation_lite@1"):
+        default_title = {"relation": "关联分析", "history": "历史关联分析"}.get(report.get("module"), "进一步解释")
+        lines = ["# " + markdown_text(report.get("title") or default_title), "",
+                 "本轮问题：" + markdown_text(report.get("question")), "",
+                 "信息截止：" + markdown_text(report.get("as_of") or "未知"), "",
+                 "## 核心结论", "", markdown_text(report.get("summary") or "")]
+        if report.get("resolved_question") and report["resolved_question"] != report.get("question"):
+            lines[4:4] = ["明确后的问题：" + markdown_text(report["resolved_question"]), ""]
+        if report.get("completion_warning"):
+            lines.extend(["", markdown_text(report["completion_warning"])])
+        for finding in report.get("key_findings") or []:
+            lines.append("- " + markdown_text(finding))
+        for section in report.get("sections") or []:
+            if section.get("body"):
+                lines.extend(["", "## " + markdown_text(section.get("heading") or default_title), "",
+                              markdown_text(section["body"])])
+                if section.get("source_refs"):
+                    lines.extend(["", "来源：" + "、".join(section["source_refs"])])
+        if report.get("sources"):
+            lines.extend(["", "## 新闻来源", ""])
+            for source in report["sources"]:
+                url = safe_url(source.get("url"))
+                label = markdown_text(source.get("title") or "新闻")
+                if url:
+                    label = "[" + label + "](" + quote(url, safe=":/?&=#%+;,@!$*-._~") + ")"
+                lines.append("- " + markdown_text(source.get("id")) + " " + label +
+                             "；来源：" + markdown_text(source.get("source_name") or source.get("source") or "未知") +
+                             "；发布：" + markdown_text(source.get("published_at") or "未知") +
+                             "；材料：" + ("网页原文片段" if source.get("content_kind") == "extracted_page_text" else "搜索摘要"))
+        if report.get("recommendations"):
+            labels = {"event": "理解事件", "relation": "发现关联", "history": "历史验证"}
+            lines.extend(["", "## 可继续探索", ""])
+            for option in report["recommendations"]:
+                lines.append("- " + labels[option["module"]] + "：" + markdown_text(option["question"]))
+        return "\n".join(lines).strip() + "\n"
     if report.get("module") == "event" and report.get("report_format") == "event_brief@1":
         return _render_event_brief(report)
     lines = ["# " + markdown_text(report["title"]), "", "研究问题：" + markdown_text(report["question"]),

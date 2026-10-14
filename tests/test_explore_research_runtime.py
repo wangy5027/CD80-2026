@@ -296,9 +296,9 @@ class ResearchRuntimeTests(unittest.TestCase):
 
     def test_each_product_module_loads_its_real_research_skill(self):
         skill_root = Path(__file__).resolve().parents[1] / "backend/app/modules/explore/skills"
-        headings = {"event": "# Explore：理解事件",
-                    "relation": "# Explore：发现关联",
-                    "history": "# Explore：历史验证"}
+        headings = {"event": "# Explore：轻量理解事件",
+                    "relation": "# Explore：轻量发现关联",
+                    "history": "# Explore：轻量历史验证"}
         for module, heading in headings.items():
             with self.subTest(module=module):
                 def finish(messages, _tools):
@@ -603,7 +603,8 @@ class ResearchRuntimeTests(unittest.TestCase):
         result = runtime.execute("web_search",
                                  {"query": "尊界V800刹车踏板支架断裂"},
                                  "unqualified-search")
-        self.assertEqual(result["evidence"], [])
+        self.assertEqual(len(result["evidence"]), 1)
+        self.assertIn(article, runtime.allowed_urls)
         blocked = runtime.execute("fetch_public_page",
                                   {"url": "https://other.example.test/"},
                                   "unqualified-home")

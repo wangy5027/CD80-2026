@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatEvidenceTime, sourceSupports, publicRunActivity } from './presentation.js';
+import { formatEvidenceTime, sourceSupports, publicRunActivity, publicStageTitle } from './presentation.js';
 import { confirmedMaterialIds, fileOriginLabel, materialContentLabel, searchStatusLabel, sourceKindLabel, stageLabel } from './model.js';
 
 test('confirmed materials prefer saved report evidence after an analysis completes', () => {
@@ -76,6 +76,22 @@ test('new source and status labels explain actual content scope without changing
   assert.equal(fileOriginLabel('public_page'), '公开网页');
   assert.equal(searchStatusLabel('error'), '检索失败');
   assert.equal(stageLabel('awaiting_clarification'), '等待明确问题');
+  assert.equal(stageLabel('reading_pages'), '正在读取新闻正文');
+  assert.equal(stageLabel('explaining'), '正在结合联网信息解释');
   assert.equal(stageLabel('interrupted'), '运行中断');
   assert.equal(sourceKindLabel('news'), 'AkShare 快讯');
+  assert.deepEqual(publicRunActivity({ id: 'r4', stage_history: [{ stage: 'reading_pages' }, { stage: 'explaining' }] }).map(row => row.title), ['读取新闻正文', '结合联网信息解释']);
+});
+
+test('history-lite first answer stages describe purpose before any news search', () => {
+  const history = { id: 'history-run', module: 'history', workflow_version: 'history-lite@1', stage_history: [
+    { stage: 'explaining' }, { stage: 'history_initial_ready' }, { stage: 'searching_web' },
+  ] };
+  assert.deepEqual(publicRunActivity(history).map(row => row.title),
+    ['说明历史关联分析目的', '已显示初步回复', '联网搜索']);
+  assert.equal(publicStageTitle(history, 'explaining'), '说明历史关联分析目的');
+  assert.equal(publicStageTitle(history, 'history_initial_ready'), '已显示初步回复');
+  assert.deepEqual(publicRunActivity({ ...history, module: 'event' }).map(row => row.title),
+    ['结合联网信息解释', '研究状态已更新', '联网搜索']);
+  assert.equal(publicStageTitle({ ...history, workflow_version: 'history@old' }, 'explaining'), '结合联网信息解释');
 });

@@ -65,6 +65,7 @@ class FakeSearch:
         self.undated = False
         self.include_historical = True
         self.duplicate = False
+        self.sources_override = None
         self.started = None
         self.release = None
         self.abortable = None
@@ -81,6 +82,9 @@ class FakeSearch:
         if self.fail:
             raise GatewayError("合成搜索故障", 502)
         now = datetime.now(timezone.utc)
+        if self.sources_override is not None:
+            return {"query": arguments["query"], "freshness": arguments["freshness"],
+                    "searchedAt": timestamp(), "sources": self.sources_override[:arguments["count"]]}
         sources = [] if self.empty else [
             {"id": "web-current", "title": "新能源政策影响光伏产业的联网摘要",
              "snippet": "公开网页摘要：新能源政策及产业影响待核实。",
@@ -565,6 +569,26 @@ class ExploreTests(unittest.TestCase):
         self.assertEqual(searches[0]["status"], "complete")
         urls = [source["url"] for source in done["report"]["sources"] if source["url"]]
         self.assertEqual(len(urls), len(set(urls)))
+
+    def test_targeted_web_search_keeps_weak_leads_ranks_strong_matches_and_rejects_identity_conflict(self):
+        date = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+        self.search.sources_override = [
+            {"id": "weak", "title": "汽车行业公开讨论", "snippet": "后续情况仍待核实。",
+             "publishedAt": date, "url": "https://search.example.test/weak"},
+            {"id": "wrong-model", "title": "尊界V700制动支架事件", "snippet": "公开报道。",
+             "publishedAt": date, "url": "https://search.example.test/wrong-model"},
+            {"id": "strong", "title": "尊界V800制动支架事件回应", "snippet": "尊界V800制动支架仍待核实。",
+             "publishedAt": date, "url": "https://search.example.test/strong"},
+        ]
+        session_id = self.session()
+        run, _ = self.submit(session_id, question="尊界V800制动支架事件有什么进展？")
+        done = self.wait(run["id"])
+        web = [item for item in done["materials"] if item["kind"] == "web_search"]
+        self.assertEqual([item["provider_id"] for item in web], ["strong", "weak"])
+        self.assertEqual(done["retrieval"]["searches"][0]["count"], 2)
+        self.assertEqual(len(self.search.calls), 1)
+        # Feed items have no query-directed guarantee and retain strict gating.
+        self.assertFalse(any(item["kind"] == "news" for item in done["materials"]))
 
     def test_event_accepts_eleven_actors_seen_in_live_model_reply(self):
         # These 11 strings reproduce the actors list observed in the actual

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { modules } from './model.js';
+import ExploreModelPicker from './ExploreModelPicker.vue';
 
 const props = defineProps({
   state: { type: Object, required: true },
@@ -11,7 +12,7 @@ const props = defineProps({
   motionPaused: { type: Boolean, default: false },
   scene: { type: String, default: 'entry' },
 });
-const emit = defineEmits(['submit', 'open-files', 'update:module', 'update:draft']);
+const emit = defineEmits(['submit', 'open-files', 'update:module', 'update:model', 'update:draft']);
 
 const shell = ref(null);
 const textarea = ref(null);
@@ -191,6 +192,7 @@ watch(() => props.scene, scheduleMeasure);
           >{{ item.title }}</button>
         </div>
         <div class="ex-glass-composer__actions">
+          <ExploreModelPicker :model-value="state.model" :disabled="state.submitting" @update:model-value="emit('update:model', $event)" />
           <button
             class="ex-glass-composer__files"
             data-testid="explore-files-open"
@@ -198,7 +200,7 @@ watch(() => props.scene, scheduleMeasure);
             :disabled="!state.session || state.loadingSession"
             :title="state.session ? `参考材料：${contextLabel}` : '提交一次研究后可选择参考材料'"
             @click="emit('open-files')"
-          ><span>参考材料</span><Transition name="ex-files-count" mode="out-in"><small :key="contextLabel">{{ contextLabel }}</small></Transition></button>
+          ><span class="ex-glass-composer__files-full">参考材料</span><span class="ex-glass-composer__files-short">材料</span><Transition name="ex-files-count" mode="out-in"><small :key="contextLabel">{{ contextLabel }}</small></Transition></button>
           <button
             class="ex-glass-composer__submit"
             data-testid="explore-submit"
@@ -408,6 +410,7 @@ watch(() => props.scene, scheduleMeasure);
   background: rgba(255, 255, 255, .62);
 }
 .ex-glass-composer__files:disabled { opacity: .55; cursor: default; }
+.ex-glass-composer__files-short { display: none; }
 .ex-glass-composer__files small { overflow: hidden; text-overflow: ellipsis; color: #626080; font-size: 12px; font-weight: 500; }
 .ex-glass-composer__submit {
   display: grid;
@@ -444,11 +447,13 @@ watch(() => props.scene, scheduleMeasure);
   .ex-glass-composer__modules { max-width: 100%; }
   .ex-glass-composer__modules button { min-height: 33px; padding: 0 9px; font-size: 13px; }
   .ex-glass-composer__actions { flex: 1 1 100%; justify-content: space-between; }
-  .ex-glass-composer__files { max-width: calc(100% - 52px); }
+  .ex-glass-composer__files { flex: 1 1 auto; min-width: 0; max-width: none; }
   .ex-glass-composer textarea { font-size: 15px; }
 }
 @media (max-width: 390px) {
   .ex-glass-composer__modules button { padding: 0 7px; }
+  .ex-glass-composer__files-full, .ex-glass-composer__files small { display: none; }
+  .ex-glass-composer__files-short { display: inline; }
   .ex-glass-composer__source { font-size: 11px; }
 }
 @media (max-height: 460px) {

@@ -81,13 +81,21 @@ const toolLabels = Object.freeze({
   read_evidence: '续读研究材料', load_skill: '加载研究能力',
 });
 const stageLabels = Object.freeze({
-  queued: '已受理研究', searching_web: '联网搜索', retrieving_news: '检索新闻材料',
+  queued: '已受理研究', searching_web: '联网搜索', reading_pages: '读取新闻正文',
+  retrieving_news: '检索新闻材料', explaining: '结合联网信息解释',
   checking_intent: '核对研究问题', awaiting_clarification: '等待明确问题',
   awaiting_review: '等待确认材料', awaiting_input: '等待确认判断',
   preparing_report: '准备报告', analyzing: '模型分析', validating: '校验报告',
   saving: '保存报告', completed: '报告已保存', failed: '研究失败',
   cancelled: '研究已取消', interrupted: '研究已中断',
 });
+export function publicStageTitle(run, stage) {
+  if (run?.module === 'history' && String(run?.workflow_version || '').startsWith('history-lite@')) {
+    if (stage === 'explaining') return '说明历史关联分析目的';
+    if (stage === 'history_initial_ready') return '已显示初步回复';
+  }
+  return Object.hasOwn(stageLabels, stage) ? stageLabels[stage] : '研究状态已更新';
+}
 const statusLabels = Object.freeze({
   complete: '已完成', error: '失败', timeout: '超时', invalid_arguments: '未执行', running: '进行中',
 });
@@ -146,7 +154,7 @@ export function publicRunActivity(run) {
   }
   const history = Array.isArray(run?.stage_history) ? run.stage_history : [];
   return history.filter(item => item && typeof item === 'object').map((item, index) => ({
-    key: `${runKey}:stage:${index}`, kind: 'stage', title: Object.hasOwn(stageLabels, item.stage) ? stageLabels[item.stage] : '研究状态已更新',
+    key: `${runKey}:stage:${index}`, kind: 'stage', title: publicStageTitle(run, item.stage),
     status: 'recorded', statusLabel: '已记录', durationSeconds: null, durationLabel: '',
     at: safeAt(item.at), round: null, outputChars: null,
   }));

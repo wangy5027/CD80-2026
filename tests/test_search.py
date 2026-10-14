@@ -1,6 +1,7 @@
 """Local HTTP tests for Gitee search; no real key or provider calls."""
 
 import json
+import html
 import tempfile
 import threading
 import unittest
@@ -48,6 +49,46 @@ class MockSearch(BaseHTTPRequestHandler):
                 {"name": "危险协议", "url": "javascript:alert(1)", "datePublished": recent},
                 {"name": "新闻 B", "url": "https://example.org/news/2", "datePublished": recent, "snippet": "后一条摘要。"},
             ]
+            if body["query"] == "all-stale":
+                pages = [{"name": f"旧报道 {index}",
+                          "url": f"https://example.com/old/{index}",
+                          "datePublished": (now - timedelta(hours=30 + index)).isoformat(),
+                          "summary": "搜索上游确实返回了报道。"}
+                         for index in range(3)]
+            elif body["query"] == "provider-empty":
+                pages = []
+            elif body["query"] == "reason-buckets":
+                pages = [
+                    {"name": "有效新闻", "url": "https://example.com/accepted",
+                     "datePublished": recent},
+                    {"name": "同网址重复", "url": "https://example.com/accepted#section",
+                     "datePublished": recent},
+                    "not-a-row",
+                    {"name": "", "url": "https://example.com/no-title", "datePublished": recent},
+                    {"name": "未来报道", "url": "https://example.com/future",
+                     "datePublished": (now + timedelta(hours=1)).isoformat()},
+                    {"name": "未知日期", "url": "https://example.com/no-date"},
+                    {"name": "过期报道", "url": "https://example.com/stale",
+                     "datePublished": stale},
+                ] + [{"name": f"有效候选 {index}",
+                      "url": f"https://example.com/extra/{index}",
+                      "datePublished": recent} for index in range(24)]
+            if body["query"] == "html":
+                table = ("<table><tr><th>指标</th><th>变化</th></tr>"
+                         "<tr><td>&nbsp;</td><td> </td></tr>"
+                         "<tr><td>--</td><td>—</td><td>-</td></tr>"
+                         "<tr><td>利润</td><td>增长 &lt; 5%</td></tr>"
+                         "<tr><td>收益</td><td>0</td><td>-5</td></tr>"
+                         "<tr><td>--</td><td>真实业务</td><td>—</td></tr></table>"
+                         "<script>不可见的脚本内容</script><style>.secret{display:none}</style>")
+                pages = [
+                    {"name": '<span data-long="' + "x" * 260 + '">某公司 &amp; 利润</span>'
+                             "<script>机密标题</script>",
+                     "url": "https://example.com/news/html", "datePublished": recent,
+                     "summary": html.escape(html.escape(table))},
+                    {"name": "&lt;b&gt;普通比较&lt;/b&gt;", "url": "https://example.org/news/math",
+                     "datePublished": recent, "summary": "增长 < 5%，AT&amp;T 同期发布消息。"},
+                ]
             response = json.dumps({"code": 200, "data": {"webPages": {"value": pages}}}, ensure_ascii=False).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -109,6 +150,12 @@ class GiteeSearchTests(unittest.TestCase):
         self.assertEqual(result["freshness"], "oneDay")
         self.assertEqual([item["title"] for item in result["sources"]], ["新闻 A", "新闻 B"])
         self.assertEqual(result["excludedCount"], 5)
+        self.assertEqual(result["rawCount"], 7)
+        self.assertEqual(result["excludedReasons"], {
+            "candidate_limit": 0, "invalid_row": 0, "invalid_source": 2,
+            "duplicate": 1, "future_published_at": 0,
+            "missing_published_at": 1, "outside_freshness": 1,
+            "result_limit": 0})
         self.assertTrue(result["sources"][0]["publishedAt"].endswith("+08:00"))
         self.assertEqual(result["sources"][0]["snippet"], "已核实的摘要。")
         self.assertEqual(result["sources"][0]["id"], self.search()["sources"][0]["id"])
@@ -122,6 +169,54 @@ class GiteeSearchTests(unittest.TestCase):
         result = self.search(freshness="noLimit")
         self.assertEqual([item["title"] for item in result["sources"]], ["新闻 A", "旧新闻", "没有日期", "新闻 B"])
         self.assertIsNone(result["sources"][2]["publishedAt"])
+        self.assertEqual(result["rawCount"], 7)
+        self.assertEqual(result["excludedCount"], 3)
+        self.assertEqual(result["excludedReasons"]["missing_published_at"], 0)
+        self.assertEqual(result["excludedReasons"]["outside_freshness"], 0)
+        self.assertEqual(result["excludedReasons"]["invalid_source"], 2)
+
+    def test_all_three_raw_results_outside_one_day_are_not_provider_empty(self):
+        result = self.search(query="all-stale")
+        self.assertEqual(result["rawCount"], 3)
+        self.assertEqual(result["sources"], [])
+        self.assertEqual(result["excludedCount"], 3)
+        self.assertEqual(result["excludedReasons"]["outside_freshness"], 3)
+        self.assertEqual(sum(result["excludedReasons"].values()), result["excludedCount"])
+        self.assertIn("时间范围", result["warning"])
+
+        empty = self.search(query="provider-empty")
+        self.assertEqual(empty["rawCount"], 0)
+        self.assertEqual(empty["sources"], [])
+        self.assertEqual(empty["excludedCount"], 0)
+        self.assertTrue(all(value == 0 for value in empty["excludedReasons"].values()))
+
+    def test_each_exclusion_reason_preserves_candidate_and_result_limits(self):
+        result = self.search(query="reason-buckets", count=1)
+        self.assertEqual(result["rawCount"], 31)
+        self.assertEqual([item["title"] for item in result["sources"]], ["有效新闻"])
+        self.assertEqual(result["excludedCount"], 30)
+        self.assertEqual(result["excludedReasons"], {
+            "candidate_limit": 1, "invalid_row": 1, "invalid_source": 1,
+            "duplicate": 1, "future_published_at": 1,
+            "missing_published_at": 1, "outside_freshness": 1,
+            "result_limit": 23})
+        with MockSearch.lock:
+            self.assertEqual(MockSearch.calls[-1]["body"],
+                             {"query": "reason-buckets", "count": 1,
+                              "summary": True, "freshness": "oneDay"})
+
+    def test_provider_html_is_plain_text_before_truncation_without_losing_math(self):
+        result = self.search(query="html")
+        self.assertEqual(len(result["sources"]), 2)
+        first, second = result["sources"]
+        self.assertEqual(first["title"], "某公司 & 利润")
+        self.assertEqual(first["snippet"],
+                         "指标 | 变化 ; 利润 | 增长 < 5% ; 收益 | 0 | -5 ; -- | 真实业务 | —")
+        self.assertNotIn("不可见", first["snippet"])
+        self.assertNotIn("机密", first["title"])
+        self.assertEqual(second["title"], "普通比较")
+        self.assertEqual(second["snippet"], "增长 < 5%，AT&T 同期发布消息。")
+        self.assertEqual(first["url"], "https://example.com/news/html")
 
     def test_bounded_count_and_invalid_arguments_do_not_call_provider(self):
         result = self.search(count=50)

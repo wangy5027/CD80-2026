@@ -223,14 +223,29 @@ try {
     return { chineseCharacters, sectionHeadings: headings.length + 2 };
   });
 
-  await check('six dated timeline nodes and distinct synthetic source types stay legible', async () => {
+  await check('six dated timeline nodes and five synthetic source previews stay legible', async () => {
     await page.locator('.explore-timeline').scrollIntoViewIfNeeded();
     await shot('03-six-event-timeline-1440x900');
     await testId('explore-sources').scrollIntoViewIfNeeded();
-    const labels = await testId('explore-sources').innerText();
-    for (const label of ['网页搜索', 'AkShare 快讯', '用户提供材料', '公开网页', '研究工具'])
-      assert.ok(labels.includes(`类型：${label}`), `Missing distinct test source type ${label}`);
+    await testId('explore-open-sources').click();
+    const sourceList = testId('explore-source-list');
+    await sourceList.waitFor({ state: 'visible' });
+    assert.equal(await sourceList.locator('.explore-source-preview').count(), layoutReport.sources.length);
+    const labels = await sourceList.innerText();
+    assert.match(labels, /浏览器响应替身 · 非真实外部来源/);
+    assert.match(labels, /发布时间：/);
+    assert.doesNotMatch(labels, /类型：|检索时间：/);
+    for (const source of layoutReport.sources)
+      assert.ok(labels.includes(source.title), `Missing synthetic source title ${source.title}`);
+    assert.equal(await sourceList.locator('.explore-source-preview .explore-source-number').count(), 0);
+    assert.equal(await sourceList.locator('.explore-source-preview > a, .explore-source-unavailable').count(), 0);
+    const linkedTitle = sourceList.locator('.explore-source-preview h3 a[href="https://example.test/layout/source-1"]');
+    assert.equal(await linkedTitle.count(), 1);
+    const unlinkedTitle = sourceList.locator('.explore-source-preview').filter({ hasText: '用户提供的布局测试原文' }).locator('h3');
+    assert.equal(await unlinkedTitle.count(), 1);
+    assert.equal(await unlinkedTitle.locator('a').count(), 0);
     await shot('04-five-source-types-1440x900');
+    await testId('explore-materials-close').click();
     return { sourceKinds: layoutReport.sources.map(source => source.kind) };
   });
 
