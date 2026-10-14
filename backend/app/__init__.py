@@ -34,6 +34,11 @@ def create_app(config=None):
     service.workshop = workshop_service
     app.extensions["strategy_workshop"] = workshop_service
     app.register_blueprint(workshop)
+    from .modules.app_workshop.service import AppWorkshopService
+    from .modules.app_workshop.routes import app_workshop
+    app.extensions["app_workshop"] = AppWorkshopService(platform)
+    platform.app_workshop = app.extensions["app_workshop"]
+    app.register_blueprint(app_workshop)
 
     @app.before_request
     def protect_local_boundary():

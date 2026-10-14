@@ -40,6 +40,17 @@ class Repository:
                     owner TEXT NOT NULL, scope TEXT NOT NULL, key TEXT NOT NULL,
                     hash TEXT NOT NULL, result TEXT NOT NULL,
                     PRIMARY KEY(owner, scope, key));
+                CREATE TABLE IF NOT EXISTS app_workshop_sessions (
+                    id TEXT PRIMARY KEY, owner TEXT NOT NULL, doc TEXT NOT NULL,
+                    updated TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS app_workshop_owner ON app_workshop_sessions(owner, updated);
+                CREATE TABLE IF NOT EXISTS app_workshop_requests (
+                    owner TEXT NOT NULL, scope TEXT NOT NULL, key TEXT NOT NULL,
+                    hash TEXT NOT NULL, result TEXT NOT NULL,
+                    PRIMARY KEY(owner, scope, key));
+                CREATE TABLE IF NOT EXISTS app_workshop_apps (
+                    owner TEXT NOT NULL, reference TEXT NOT NULL, doc TEXT NOT NULL,
+                    PRIMARY KEY(owner, reference));
             """)
         self.recover()
 
@@ -181,6 +192,11 @@ class Repository:
     def list_agents(self, owner):
         with self.transaction() as db:
             return [json.loads(row["doc"]) for row in db.execute("SELECT doc FROM agents WHERE owner=? ORDER BY id,version", (owner,))]
+
+    def workshop_metadata(self, owner):
+        with self.transaction() as db:
+            return {row["reference"]: json.loads(row["doc"]) for row in db.execute(
+                "SELECT reference,doc FROM app_workshop_apps WHERE owner=?", (owner,))}
 
     def agent(self, owner, reference):
         agent_id, sep, version = reference.partition("@")

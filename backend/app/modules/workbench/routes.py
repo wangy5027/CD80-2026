@@ -34,7 +34,17 @@ def json_body():
 @workbench.route("/desktop/health", methods=["GET"])
 def health():
     """Identify the standalone website's Flask process and health."""
-    return jsonify({"ok": True, "app": "Ficagent", "backend": "flask", "instanceId": os.environ.get("FICAGENT_INSTANCE_ID", "")})
+    registered = {(rule.rule, method) for rule in current_app.url_map.iter_rules() for method in rule.methods}
+    personal_app_routes = {
+        ("/desktop/api/strategy-workshop/runs/<run_id>/personal-app", "POST"),
+        ("/desktop/api/strategy-workshop/personal-apps/<app_id>", "GET"),
+    }
+    features = ["strategy-personal-apps"] if personal_app_routes <= registered else []
+    if ("/desktop/api/strategy-workshop/personal-apps/<app_id>/sessions", "POST") in registered:
+        features.append("strategy-personal-app-rerun")
+    return jsonify({"ok": True, "app": "Ficagent", "backend": "flask",
+                    "instanceId": os.environ.get("FICAGENT_INSTANCE_ID", ""), "processId": os.getpid(),
+                    "features": features})
 
 
 @workbench.route("/desktop/api/<path:endpoint>", methods=ALL_METHODS)

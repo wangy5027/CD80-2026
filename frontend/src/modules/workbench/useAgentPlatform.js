@@ -1,14 +1,34 @@
 import { reactive, watch, onUnmounted } from 'vue';
 import { request } from './api.js';
 import { accountDraftKey, readDraft, writeDraft, clearDraft, clearDraftIfUnchanged } from './draftStore.js';
+import { prepareAgentHandoff } from '../app-workshop/handoff.js';
 
 export const newRequestKey = () => crypto.randomUUID();
 
 export function useAgentPlatform(s, { toast, refreshState, openTask }) {
-  const p = reactive({ agents: [], runs: [], runtime: null, loading: false, error: '', busy: {}, selected: null, ownerId: '' });
+  const p = reactive({ agents: [], strategyApps: [], runs: [], runtime: null, loading: false, error: '', busy: {}, selected: null, ownerId: '' });
   const draftKey = (purpose, entity) => accountDraftKey(p.ownerId, purpose, entity);
   const selectionKey = () => draftKey('application-selection', 'catalog');
   function selectEntry(entry) { p.selected = entry; if (entry) writeDraft(selectionKey(), entry.agentRef); else clearDraft(selectionKey()); }
+  async function openFromWorkshop(agentRef, requirement, inputs = {}, suppliedEntry = null) {
+    const at = epoch, identity = scope();
+    await refresh();
+    if (!alive(at, identity)) return;
+    const entry = p.agents.find(item => item.agentRef === agentRef) || suppliedEntry;
+    if (!entry) { toast('暂时找不到这个应用，请同步应用列表后再试。', true); return; }
+    prepareAgentHandoff(p.ownerId, entry, requirement, inputs, s.files);
+    selectEntry(entry);
+    toast(entry.workshop ? '已保存到我的应用池，尚未运行。' : '已带上你的问题，请检查后再开始。');
+  }
+  const contextFor = entry => readDraft(draftKey('invoke-goal', entry.agentRef));
+  const hasPreviousDraft = entry => Boolean(readDraft(draftKey('invoke-backup', entry.agentRef)));
+  function restorePreviousDraft(entry) {
+    const key = draftKey('invoke-backup', entry.agentRef), previous = readDraft(key);
+    if (!previous) return;
+    writeDraft(draftKey('invoke', entry.agentRef), previous.inputs);
+    writeDraft(draftKey('invoke-goal', entry.agentRef), previous.goal);
+    clearDraft(key); toast('已恢复这个应用上一次填写的内容。');
+  }
   let epoch = 0;
   let timer;
   let controller;
@@ -20,7 +40,7 @@ export function useAgentPlatform(s, { toast, refreshState, openTask }) {
     clearTimeout(timer);
     controller?.abort();
     controller = null;
-    p.runs = []; p.agents = []; p.runtime = null; p.selected = null; p.error = ''; p.loading = false; p.busy = {};
+    p.runs = []; p.agents = []; p.strategyApps = []; p.runtime = null; p.selected = null; p.error = ''; p.loading = false; p.busy = {};
     p.ownerId = s.authenticated ? String(s.user?.id || '') : '';
     keys.clear();
   }
@@ -41,6 +61,7 @@ export function useAgentPlatform(s, { toast, refreshState, openTask }) {
       if (!alive(at, identity)) return;
       if (catalog) {
         p.agents = catalog.agents || [];
+        p.strategyApps = catalog.strategyApps || [];
         const selectedRef = readDraft(selectionKey());
         p.selected = p.agents.find(entry => entry.agentRef === selectedRef) || null;
       }
@@ -99,6 +120,6 @@ export function useAgentPlatform(s, { toast, refreshState, openTask }) {
   const invoke = (entry, values) => action('invoke', '/agent-runs', { mode: 'invoke', agentRef: entry.agentRef, ...values }, async result => {
     p.selected = null; toast('已发起应用运行。');
     if (result.taskId) await openTask(result.taskId);
-  }, false, [draftKey('invoke', entry.agentRef), selectionKey()]);
-  return { p, refresh, busy, approve, cancel, supply, feedback, save, revise, invoke, draftKey, selectEntry };
+  }, false, [draftKey('invoke', entry.agentRef), draftKey('invoke-goal', entry.agentRef), selectionKey()]);
+  return { p, refresh, busy, approve, cancel, supply, feedback, save, revise, invoke, draftKey, selectEntry, openFromWorkshop, contextFor, hasPreviousDraft, restorePreviousDraft };
 }

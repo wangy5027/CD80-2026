@@ -64,25 +64,27 @@ export function validateConfig(config) {
   return errors;
 }
 
-export function storageKey(ownerKey) {
-  return `strategy-workshop:v1:${encodeURIComponent(String(ownerKey))}`;
+export function storageKey(ownerKey, personalAppId = '') {
+  const base = `strategy-workshop:v1:${encodeURIComponent(String(ownerKey))}`;
+  return personalAppId ? `${base}:personal-app:${encodeURIComponent(String(personalAppId))}` : base;
 }
 
-export function loadDraft(storage, ownerKey) {
+export function loadDraft(storage, ownerKey, personalAppId = '') {
   try {
-    const value = JSON.parse(storage.getItem(storageKey(ownerKey)) || 'null');
+    const value = JSON.parse(storage.getItem(storageKey(ownerKey, personalAppId)) || 'null');
     if (!value || value.version !== 1) return null;
     return {
       idea: typeof value.idea === 'string' ? value.idea : '',
       sessionId: typeof value.sessionId === 'string' ? value.sessionId : null,
+      resultRunId: typeof value.resultRunId === 'string' ? value.resultRunId : null,
       customizationInstructions: typeof value.customizationInstructions === 'string' ? value.customizationInstructions : '',
       config: value.config && typeof value.config === 'object' ? configFrom(value.config) : null,
     };
   } catch { return null; }
 }
 
-export function saveDraft(storage, ownerKey, value) {
-  try { storage.setItem(storageKey(ownerKey), JSON.stringify({ version: 1, ...value })); } catch { /* Server session remains available when browser storage is full/disabled. */ }
+export function saveDraft(storage, ownerKey, value, personalAppId = '') {
+  try { storage.setItem(storageKey(ownerKey, personalAppId), JSON.stringify({ version: 1, ...value })); } catch { /* Server session remains available when browser storage is full/disabled. */ }
 }
 
 export function metricCards(result, languageStyle = 'expert') {

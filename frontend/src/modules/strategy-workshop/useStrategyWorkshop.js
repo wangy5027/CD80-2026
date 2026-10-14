@@ -1,11 +1,11 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { workshopRequest } from './api.js';
-import { configFrom, isActiveRun, loadDraft, saveDraft, validateConfig } from './format.js';
+import { configFrom, isActiveRun, isFinishedRun, loadDraft, saveDraft, validateConfig } from './format.js';
 import { loadLanguageStyle, normalizeLanguageStyle, saveLanguageStyle } from './language.js';
 
 const id = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-export function useStrategyWorkshop(ownerKey) {
+export function useStrategyWorkshop(ownerKey, personalAppKey = ref('')) {
   const languageStyle = ref('beginner');
   const idea = ref('');
   const session = ref(null);
@@ -23,6 +23,12 @@ export function useStrategyWorkshop(ownerKey) {
   const coverageAccepted = ref(false);
   const diagnosticAccepted = ref(false);
   const run = ref(null);
+  const openedPersonalApp = ref(null);
+  const personalAppRunId = ref('');
+  const personalApp = computed(() => personalAppView.value ? openedPersonalApp.value : run.value?.personalApp || null);
+  const personalAppView = ref(false);
+  const personalAppSaveError = ref('');
+  const canSavePersonalApp = computed(() => isFinishedRun(run.value) && Boolean(run.value?.result || run.value?.report));
   const history = ref([]);
   const nextCursor = ref(null);
   const historyOpen = ref(false);
@@ -35,6 +41,7 @@ export function useStrategyWorkshop(ownerKey) {
   let generation = 0;
   let disposed = false;
   let owner = '';
+  let personalAppId = '';
   let timer = null;
   let searchTimer = null;
   let searchGeneration = 0;
@@ -52,6 +59,7 @@ export function useStrategyWorkshop(ownerKey) {
   const coverageRequired = computed(() => Boolean(preflight.value?.coverage?.required || preflight.value?.requiresCoverageConfirmation));
   const canRun = computed(() => Boolean(preflight.value && !busy.value && (!coverageRequired.value || coverageAccepted.value) && (formalAvailable.value || diagnosticAccepted.value)));
   const selectedSymbol = computed(() => symbols.value.find((value) => (value.symbol || value.code) === form.symbol));
+  const canReconfigurePersonalApp = computed(() => Boolean(personalAppView.value && openedPersonalApp.value && !active.value && !historyOpen.value && !conversationOpen.value && run.value?.runId === personalAppRunId.value));
 
   function stopObservation() {
     clearTimeout(timer);
@@ -73,7 +81,7 @@ export function useStrategyWorkshop(ownerKey) {
   }
 
   async function action(kind, path, payload = {}) {
-    const signature = `${kind}:${JSON.stringify(payload)}`;
+    const signature = `${kind}:${path}:${JSON.stringify(payload)}`;
     const key = actionKeys.get(signature) || id();
     actionKeys.set(signature, key);
     const value = await request(path, { method: 'POST', body: { ...payload, idempotencyKey: key } });
@@ -93,8 +101,8 @@ export function useStrategyWorkshop(ownerKey) {
   }
 
   function persist() {
-    if (!owner || suppressDraft || disposed) return;
-    saveDraft(globalThis.localStorage, owner, { idea: idea.value, sessionId: session.value?.sessionId || null, customizationInstructions: customizationInstructions.value, config: { ...form } });
+    if (!owner || suppressDraft || disposed || (personalAppView.value && !session.value)) return;
+    saveDraft(globalThis.localStorage, owner, { idea: idea.value, sessionId: session.value?.sessionId || null, customizationInstructions: customizationInstructions.value, config: { ...form }, ...(personalAppView.value ? { resultRunId: personalAppRunId.value } : {}) }, personalAppView.value ? personalAppId : '');
   }
 
   function resetPreflight() {
@@ -114,6 +122,12 @@ export function useStrategyWorkshop(ownerKey) {
     persist();
   }
 
+  function restorePreflight() {
+    if (!preflight.value) return;
+    const frozen = configFrom(preflight.value.requested);
+    if (frozen.symbol !== form.symbol || frozen.startDate !== form.startDate || frozen.endDate !== form.endDate || Number(frozen.initialCash) !== Number(form.initialCash)) preflight.value = null;
+  }
+
   async function loadHistory(append = false) {
     const query = append && nextCursor.value ? `?cursor=${encodeURIComponent(nextCursor.value)}` : '';
     const value = await request(`/sessions${query}`);
@@ -123,30 +137,34 @@ export function useStrategyWorkshop(ownerKey) {
     return records;
   }
 
-  async function initialize(key) {
+  async function initialize(key, appId = personalAppKey.value) {
     generation += 1;
     stopObservation();
     owner = key == null ? '' : String(key);
+    personalAppId = appId ? String(appId) : '';
+    personalAppView.value = Boolean(appId);
+    openedPersonalApp.value = null;
+    personalAppRunId.value = '';
     languageStyle.value = owner ? loadLanguageStyle(owner) : 'beginner';
     actionKeys.clear();
     suppressDraft = true;
     session.value = null; run.value = null; preflight.value = null; capabilities.value = null; catalog.value = [];
     symbols.value = []; history.value = []; historyOpen.value = false; historyReadOnly.value = false;
     conversation.value = null; conversationOpen.value = false; activeView = null; historyGeneration += 1;
-    historicalCode.value = ''; error.value = ''; syncError.value = ''; busy.value = ''; step.value = 'idea';
+    historicalCode.value = ''; error.value = ''; syncError.value = ''; personalAppSaveError.value = ''; busy.value = ''; step.value = 'idea';
     coverageAccepted.value = false; diagnosticAccepted.value = false; sourceRunId.value = null; fieldErrors.value = {};
     customizationInstructions.value = '';
     Object.assign(form, configFrom());
     idea.value = '';
     if (!owner) { loading.value = false; suppressDraft = false; return; }
-    const draft = loadDraft(globalThis.localStorage, owner);
+    const draft = loadDraft(globalThis.localStorage, owner, personalAppId);
     idea.value = draft?.idea || '';
     customizationInstructions.value = draft?.customizationInstructions || '';
     const at = generation;
     loading.value = true;
     const results = await Promise.allSettled([
       request('/capabilities'), request('/symbols'), loadHistory(),
-      draft?.sessionId ? request(`/sessions/${encodeURIComponent(draft.sessionId)}`) : draft ? Promise.resolve(null) : request('/sessions/current').then((value) => value.session),
+      appId ? request(`/personal-apps/${encodeURIComponent(appId)}`) : draft?.sessionId ? request(`/sessions/${encodeURIComponent(draft.sessionId)}`) : draft ? Promise.resolve(null) : request('/sessions/current').then((value) => value.session),
       request('/strategies'),
     ]);
     if (at !== generation || disposed) return;
@@ -158,12 +176,42 @@ export function useStrategyWorkshop(ownerKey) {
     if (symbolResult.status === 'fulfilled') symbols.value = symbolResult.value.symbols || symbolResult.value.items || symbolResult.value || [];
     if (catalogResult.status === 'fulfilled') catalog.value = catalogResult.value.strategies || [];
     if (draft?.config) Object.assign(form, draft.config);
-    if (sessionResult.status === 'fulfilled' && sessionResult.value) {
-      applySession(sessionResult.value, { restore: true });
-      if (preflight.value) {
-        const frozen = configFrom(preflight.value.requested);
-        if (frozen.symbol !== form.symbol || frozen.startDate !== form.startDate || frozen.endDate !== form.endDate || Number(frozen.initialCash) !== Number(form.initialCash)) preflight.value = null;
+    if (appId && sessionResult.status === 'fulfilled' && sessionResult.value) {
+      openedPersonalApp.value = sessionResult.value.app;
+      run.value = { ...sessionResult.value.run, personalApp: sessionResult.value.app };
+      personalAppRunId.value = run.value.runId;
+      Object.assign(form, configFrom(run.value.requested || run.value.config || capabilities.value?.defaults));
+      historyReadOnly.value = true;
+      step.value = 'result';
+      if (draft?.sessionId) {
+        try {
+          const restoredSession = await request(`/sessions/${encodeURIComponent(draft.sessionId)}`);
+          if (restoredSession.sessionId !== draft.sessionId || restoredSession.sourcePersonalAppId !== personalAppId || !restoredSession.candidate) throw new Error('这份回测设置不属于当前个人应用，请重新设置。');
+          let restoredRun = null;
+          if (restoredSession.runId) {
+            restoredRun = await request(`/runs/${encodeURIComponent(restoredSession.runId)}`);
+            if (restoredRun.runId !== restoredSession.runId || restoredRun.sessionId !== restoredSession.sessionId || restoredRun.sourcePersonalAppId !== personalAppId) throw new Error('这份回测结果不属于当前个人应用，请重新设置。');
+          } else if (draft.resultRunId && draft.resultRunId !== run.value.runId) {
+            restoredRun = await request(`/runs/${encodeURIComponent(draft.resultRunId)}`);
+            if (restoredRun.runId !== draft.resultRunId || restoredRun.sourcePersonalAppId !== personalAppId) throw new Error('上次回测结果不属于当前个人应用，请重新设置。');
+          }
+          Object.assign(form, configFrom(draft.config || restoredSession.rerunDefaults || run.value.requested || capabilities.value?.defaults));
+          applySession(restoredSession, { restore: true });
+          restorePreflight();
+          historyReadOnly.value = false;
+          if (restoredRun) {
+            run.value = restoredRun;
+            personalAppRunId.value = restoredRun.runId;
+            if (restoredSession.runId) step.value = 'result';
+            if (isActiveRun(restoredRun)) schedulePoll();
+          }
+        } catch (failure) {
+          if (failure.name !== 'AbortError' && at === generation) syncError.value = `未能恢复这次回测设置：${failure.message} 已保留应用原来的结果，可以重试刷新或重新设置。`;
+        }
       }
+    } else if (!appId && sessionResult.status === 'fulfilled' && sessionResult.value) {
+      applySession(sessionResult.value, { restore: true });
+      restorePreflight();
       // An unsent draft remains editable without altering the server-confirmed selection.
       if (draft?.idea && draft.idea !== sessionResult.value.idea) idea.value = draft.idea;
       if (sessionResult.value.runId) {
@@ -175,7 +223,7 @@ export function useStrategyWorkshop(ownerKey) {
       }
     }
     if (at !== generation || disposed) return;
-    const failures = results.filter((result) => result.status === 'rejected' && result.reason?.name !== 'AbortError' && result.reason?.status !== 404);
+    const failures = results.filter((result) => result.status === 'rejected' && result.reason?.name !== 'AbortError' && (appId || result.reason?.status !== 404));
     if (failures.length) error.value = failures[0].reason.message;
     loading.value = false;
     suppressDraft = false;
@@ -300,6 +348,42 @@ export function useStrategyWorkshop(ownerKey) {
     });
   }
 
+  async function reconfigurePersonalApp() {
+    if (!canReconfigurePersonalApp.value || busy.value || activeView) return;
+    if (session.value?.sourcePersonalAppId === personalAppId && !session.value.runId) {
+      historyReadOnly.value = false;
+      conversation.value = null;
+      conversationOpen.value = false;
+      step.value = 'config';
+      return;
+    }
+    return operation('personal-app-session', async () => {
+      const value = await action('personal-app-session', `/personal-apps/${encodeURIComponent(personalAppId)}/sessions`, { languageStyle: languageStyle.value });
+      if (!value.sessionId || value.sourcePersonalAppId !== personalAppId || !value.candidate) throw new Error('未能载入这个应用的策略，请重试。');
+      // Keep the current result visible until the new configuration session is confirmed.
+      const previousConfig = run.value?.requested || value.rerunDefaults || capabilities.value?.defaults;
+      historicalCode.value = '';
+      historyReadOnly.value = false;
+      conversation.value = null;
+      conversationOpen.value = false;
+      activeView = null;
+      historyGeneration += 1;
+      customizationInstructions.value = '';
+      applySession(value);
+      Object.assign(form, configFrom(previousConfig));
+      resetPreflight();
+      syncError.value = '';
+      step.value = 'config';
+      persist();
+    });
+  }
+
+  function viewPersonalAppResult() {
+    if (!personalAppView.value || !run.value || busy.value || activeView) return;
+    historyReadOnly.value = !session.value?.runId;
+    step.value = 'result';
+  }
+
   async function startRun() {
     if (!canRun.value) return;
     return operation('run', async () => {
@@ -311,6 +395,7 @@ export function useStrategyWorkshop(ownerKey) {
         ...(!formalAvailable.value ? { diagnosticAcknowledged: true } : {}),
       });
       run.value = value;
+      if (personalAppView.value) personalAppRunId.value = value.runId;
       historicalCode.value = '';
       historyReadOnly.value = false;
       step.value = 'result';
@@ -327,6 +412,23 @@ export function useStrategyWorkshop(ownerKey) {
       run.value = await action('cancel', `/runs/${encodeURIComponent(run.value.runId)}/cancel`);
       schedulePoll();
     });
+  }
+
+  async function savePersonalApp() {
+    if (personalApp.value) return personalApp.value;
+    if (!canSavePersonalApp.value) return;
+    const runId = run.value.runId;
+    const viewAt = historyGeneration;
+    const at = generation;
+    personalAppSaveError.value = '';
+    const app = await operation('save-personal-app', async () => {
+      const value = await action('save-personal-app', `/runs/${encodeURIComponent(runId)}/personal-app`);
+      if (viewAt !== historyGeneration || run.value?.runId !== runId) return;
+      run.value = { ...run.value, personalApp: value.app };
+      return value.app;
+    });
+    if (!app && at === generation && run.value?.runId === runId) personalAppSaveError.value = error.value;
+    return app;
   }
 
   async function openHistory(record) {
@@ -349,7 +451,7 @@ export function useStrategyWorkshop(ownerKey) {
   }
 
   function rememberActiveView() {
-    if (!activeView) activeView = { run: run.value, step: step.value, historicalCode: historicalCode.value, syncError: syncError.value };
+    if (!activeView) activeView = { run: run.value, step: step.value, historicalCode: historicalCode.value, syncError: syncError.value, historyReadOnly: historyReadOnly.value };
   }
 
   async function openHistoricalRun(record) {
@@ -395,6 +497,7 @@ export function useStrategyWorkshop(ownerKey) {
   function leaveHistory() {
     historyGeneration += 1;
     clearTimeout(timer);
+    const readOnly = activeView ? activeView.historyReadOnly : personalAppView.value;
     if (activeView) {
       run.value = activeView.run;
       step.value = activeView.step;
@@ -404,7 +507,7 @@ export function useStrategyWorkshop(ownerKey) {
     activeView = null;
     conversation.value = null;
     conversationOpen.value = false;
-    historyReadOnly.value = false;
+    historyReadOnly.value = readOnly;
     historyOpen.value = false;
     if (isActiveRun(run.value)) schedulePoll();
   }
@@ -417,8 +520,11 @@ export function useStrategyWorkshop(ownerKey) {
 
   async function getHistoricalCode() {
     if (!run.value?.runId || historicalCode.value) return;
+    const runId = run.value.runId;
+    const viewAt = historyGeneration;
     return operation('code', async () => {
-      const value = await request(`/runs/${encodeURIComponent(run.value.runId)}/code`);
+      const value = await request(`/runs/${encodeURIComponent(runId)}/code`);
+      if (viewAt !== historyGeneration || run.value?.runId !== runId) return;
       historicalCode.value = value.code || value.sourceCode || '';
     });
   }
@@ -427,6 +533,9 @@ export function useStrategyWorkshop(ownerKey) {
     clearTimeout(timer);
     const oldRun = run.value;
     const previousIdea = oldRun?.idea || oldRun?.candidate?.idea || session.value?.idea || '';
+    personalAppView.value = false;
+    openedPersonalApp.value = null;
+    personalAppRunId.value = '';
     session.value = null; run.value = null; historicalCode.value = '';
     historyReadOnly.value = false; historyOpen.value = false; error.value = ''; syncError.value = '';
     conversation.value = null; conversationOpen.value = false; activeView = null; historyGeneration += 1;
@@ -468,18 +577,20 @@ export function useStrategyWorkshop(ownerKey) {
   }
 
   watch(idea, persist);
+  watch(() => run.value?.runId, () => { personalAppSaveError.value = ''; });
   watch(customizationInstructions, persist);
   watch(() => ({ ...form }), () => { if (!suppressDraft) resetPreflight(); }, { flush: 'sync' });
-  watch(ownerKey, initialize, { immediate: true });
+  watch(() => [ownerKey.value, personalAppKey.value], ([key, appId]) => initialize(key, appId), { immediate: true });
   onBeforeUnmount(() => { disposed = true; generation += 1; stopObservation(); });
 
   return { languageStyle, setLanguageStyle, idea, session, capabilities, catalog, symbols, form, fieldErrors, error, syncError, busy, loading, step,
     preflight, coverageAccepted, diagnosticAccepted, run, history, nextCursor, historyOpen, historyReadOnly, conversation, conversationOpen,
     historicalCode, candidate, customization, customizationInstructions, report, active, formalAvailable, coverageRequired, canRun, selectedSymbol, sourceRunId,
+    personalApp, personalAppView, personalAppSaveError, canSavePersonalApp, savePersonalApp, canReconfigurePersonalApp, reconfigurePersonalApp, viewPersonalAppResult,
     match, select, considerCustomization, rewriteCustomization, confirmCustomization, returnToBaseStrategy, checkConfig, startRun, cancelRun, openHistory, openHistoricalRun, viewRunConversation, leaveHistory, showHistory, getHistoricalCode, newSession,
     searchSymbols, useSymbolDefaults, resetPreflight, syncRun, loadHistory,
     refreshHistory: () => operation('history', () => loadHistory()),
     loadMoreHistory: () => operation('history', () => loadHistory(true)),
-    reload: () => initialize(owner),
+    reload: () => initialize(owner, personalAppView.value ? personalAppKey.value : ''),
   };
 }

@@ -286,7 +286,7 @@ export function useWorkbench() {
           const saved = localStorage.getItem('cd80-last-task:' + s.user?.id);
           const savedView = localStorage.getItem('cd80-last-view:' + s.user?.id);
           if (saved && s.tasks.some(task => task.id === saved)) await openTask(saved);
-          if (['applications', 'strategy-workshop', 'files', 'schedule', 'extensions', 'settings'].includes(savedView)) setView(savedView);
+          if (['applications', 'strategy-workshop', 'app-workshop', 'files', 'schedule', 'extensions', 'settings'].includes(savedView)) setView(savedView);
         }
       }
     } catch (error) {

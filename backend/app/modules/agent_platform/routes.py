@@ -41,7 +41,9 @@ def catalog():
     platform, owner = context()
     if request.method == "POST":
         return jsonify(platform.save(owner, json_body())), 201
-    return jsonify({"agents": platform.list_agents(owner)})
+    workshop = current_app.extensions.get("strategy_workshop")
+    return jsonify({"agents": platform.list_agents(owner),
+                    "strategyApps": workshop.list_personal_apps(owner) if workshop else []})
 
 
 @agents.route("/desktop/api/agents/<agent_id>/versions/<version>", methods=["GET"])

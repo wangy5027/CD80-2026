@@ -3,9 +3,15 @@ import { reactive, ref, watch, onUnmounted } from 'vue';
 import { fileFields, initialInputs, parseInputs, parameterLabels } from '../agentForms.js';
 import { readDraft, writeDraft, subscribeDraft, uploadToDraft } from '../draftStore.js';
 import { fileLabel, fileIdentityHint } from '../fileLabels.js';
-const props = defineProps({ spec: Object, draftKey: String, initial: { type: Object, default: () => ({}) }, files: Array, fresh: Boolean, busy: Boolean, submitLabel: { default: '确认参数' } });
+const props = defineProps({ spec: Object, draftKey: String, contextDraftKey: String, showContext: Boolean, initial: { type: Object, default: () => ({}) }, files: Array, fresh: Boolean, busy: Boolean, submitLabel: { default: '确认参数' } });
 const emit = defineEmits(['submit', 'upload']);
 const values = reactive({}); const error = ref('');
+const goal = ref(''); let unsubscribeGoal; let restoringGoal = false;
+watch(() => props.contextDraftKey, key => {
+  unsubscribeGoal?.(); restoringGoal = true; goal.value = readDraft(key) || ''; restoringGoal = false;
+  unsubscribeGoal = subscribeDraft(key, value => { restoringGoal = true; goal.value = value || ''; restoringGoal = false; });
+}, { immediate: true });
+watch(goal, value => { if (!restoringGoal && props.contextDraftKey) writeDraft(props.contextDraftKey, value); }, { flush: 'sync' });
 let restoring = false; let unsubscribe;
 function restore(saved) {
   restoring = true;
@@ -21,16 +27,17 @@ watch(values, () => {
   if (restoring) return;
   restoring = true; writeDraft(props.draftKey, values); restoring = false;
 }, { deep: true, flush: 'sync' });
-onUnmounted(() => unsubscribe?.());
+onUnmounted(() => { unsubscribe?.(); unsubscribeGoal?.(); });
 function upload(field) {
   const key = props.draftKey;
   writeDraft(key, values);
   emit('upload', { field, onUploaded: uploadToDraft(key, field, { ...values }) });
 }
-function submit() { try { const parsed = parseInputs(props.spec, values); error.value = ''; emit('submit', parsed); } catch (e) { error.value = e.message; } }
+function submit() { try { const parsed = parseInputs(props.spec, values); error.value = ''; emit('submit', { ...parsed, ...(props.showContext && goal.value.trim() ? { goal: goal.value.trim() } : {}) }); } catch (e) { error.value = e.message; } }
 </script>
 <template>
   <form class="agent-input-form" @submit.prevent="submit">
+    <label v-if="showContext" class="form-field" for="agent-requirement"><span>这次想解决的问题</span><textarea id="agent-requirement" v-model="goal" rows="4" :disabled="busy" /><small class="agent-muted">已经带上你的需求。可以先修改问题和下面的参数，再开始运行。</small></label>
     <p v-if="fresh" class="agent-muted">请为本次运行选择输入文件，默认不会使用上次文件。</p>
     <label v-for="(field, name) in (spec?.inputSchema?.properties || {})" :key="name" class="form-field">
       <span>{{ field.title || parameterLabels[name] || name }}<b v-if="spec.inputSchema.required?.includes(name)"> *</b></span>

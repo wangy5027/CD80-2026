@@ -146,6 +146,24 @@ def run_conversation(run_id):
     return jsonify(service.conversation(owner, run_id=run_id))
 
 
+@workshop.post("/runs/<run_id>/personal-app")
+def save_personal_app(run_id):
+    service, owner = context()
+    return jsonify(service.save_personal_app(owner, run_id, json_body()))
+
+
+@workshop.get("/personal-apps/<app_id>")
+def personal_app(app_id):
+    service, owner = context()
+    return jsonify(service.personal_app(owner, app_id))
+
+
+@workshop.post("/personal-apps/<app_id>/sessions")
+def personal_app_session(app_id):
+    service, owner = context()
+    return jsonify(service.personal_app_session(owner, app_id, json_body())), 201
+
+
 @workshop.post("/runs/<run_id>/cancel")
 def cancel(run_id):
     service, owner = context()

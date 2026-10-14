@@ -40,6 +40,7 @@ class AgentPlatform:
         self.dispatch_active = {}
         self.closed = False
         self.presets = {}
+        self.app_workshop = None
 
     def register_preset(self, spec):
         spec = validate_agent_spec(spec)
@@ -48,9 +49,12 @@ class AgentPlatform:
 
     def list_agents(self, owner):
         personal = self.repository.list_agents(owner)
+        workshop_metadata = self.repository.workshop_metadata(owner)
         personal_refs = {spec["id"] + "@" + spec["version"] for spec in personal}
         return [{"agentRef": ref, "spec": spec, "personal": False} for ref, spec in self.presets.items() if ref not in personal_refs] + [
-            {"agentRef": spec["id"] + "@" + spec["version"], "spec": spec, "personal": True} for spec in personal]
+            {"agentRef": spec["id"] + "@" + spec["version"], "spec": spec, "personal": True,
+             **({"workshop": workshop_metadata[spec["id"] + "@" + spec["version"]]}
+                if spec["id"] + "@" + spec["version"] in workshop_metadata else {})} for spec in personal]
 
     def agent(self, owner, reference):
         try:
@@ -627,6 +631,8 @@ class AgentPlatform:
         raise GatewayError("产物不存在或无权访问。", 404)
 
     def close(self):
+        if self.app_workshop is not None:
+            self.app_workshop.close()
         with self.lock:
             self.closed = True
             controls = list(self.active.items())

@@ -55,6 +55,14 @@ def action_entries(action, body, response, *, legacy=False):
             explanation = {"understoodIdea": str(explanation)}
         add("assistant", "matching", "理解想法并匹配策略", explanation.get("understoodIdea", candidate.get("summary", "")),
             candidate=candidate, matchRevision=response.get("matchRevision"))
+    elif kind == "personal-app-session":
+        add("user", "configuration", "打开个人策略应用", "使用已保存的策略，重新选择回测参数。",
+            sourcePersonalAppId=response.get("sourcePersonalAppId"), sourceRunId=response.get("sourceRunId"))
+        add("assistant", "configuration", "复用已保存的策略",
+            style_text(style, "这次仍用你保存的买卖规则。可以重新选股票、日期和起始资金，再测试一次。",
+                       "已锁定保存版本的策略源码与交易规则。请重新配置回测标的、样本区间及初始资金。"),
+            candidate=candidate, sourcePersonalAppId=response.get("sourcePersonalAppId"),
+            sourceRunId=response.get("sourceRunId"), configuration=response.get("rerunDefaults"))
     elif kind == "selection":
         decision = body.get("decision") or (response.get("selectionApproval") or {}).get("decision")
         add("user", "selection", "选择策略", "采用这条策略进行回测。" if decision == "accept" else "不认可这条策略，重新描述。",
@@ -151,7 +159,7 @@ def stored_entries(db, owner, session_id):
 
 def transcript(db, owner, session):
     entries, rows = stored_entries(db, owner, session["id"])
-    complete = any(row["source"] == "sessions" for row in rows)
+    complete = any(row["source"] == "sessions" or row["source"].startswith("personal-app-session:") for row in rows)
     if not complete:
         recorded = {(row["source"], row["request_key"]) for row in rows}
         recovered = []

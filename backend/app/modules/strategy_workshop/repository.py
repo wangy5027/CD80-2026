@@ -90,7 +90,7 @@ class Repository:
 
     def put(self, db, owner, kind, doc):
         old = self.get(db, owner, kind, doc["id"])
-        if (kind in {"preflight"} or (kind == "run" and old["status"] in TERMINAL)
+        if (kind in {"preflight", "personal_app"} or (kind == "run" and old["status"] in TERMINAL)
                 or (kind == "customization" and old["status"] in {"validated", "validation_failed"})):
             fail("已冻结记录不能修改。", 409, "immutable_record")
         doc["updatedAt"] = now()
@@ -112,6 +112,22 @@ class Repository:
                 fail("冻结快照完整性检查失败。", 503, "snapshot_corrupt")
             return value
 
+    @staticmethod
+    def personal_app_id(run_id):
+        # Runs have globally unique immutable IDs, so all requests for the same
+        # run resolve to one application even with different idempotency keys.
+        return "strategy_app_" + run_id
+
+    def personal_app_for_run(self, db, owner, run_id):
+        row = db.execute("SELECT doc FROM workshop_objects WHERE id=? AND owner=? AND kind='personal_app'",
+                         (self.personal_app_id(run_id), owner)).fetchone()
+        return json.loads(row["doc"]) if row else None
+
+    def personal_apps(self, owner):
+        with self.transaction() as db:
+            return [json.loads(row["doc"]) for row in db.execute(
+                "SELECT doc FROM workshop_objects WHERE owner=? AND kind='personal_app' ORDER BY updated DESC,id DESC", (owner,))]
+
     def event(self, db, owner, run_id, kind, data=None):
         value = {"runId": run_id, "type": kind, "at": now(), **(data or {})}
         cursor = db.execute("INSERT INTO workshop_events(owner,run,doc) VALUES(?,?,?)",
@@ -128,7 +144,9 @@ class Repository:
 
     def current(self, owner):
         with self.transaction() as db:
-            row = db.execute("SELECT doc FROM workshop_objects WHERE owner=? AND kind='session' ORDER BY updated DESC,id DESC LIMIT 1", (owner,)).fetchone()
+            # Millisecond timestamps can tie when a new rerun is opened directly
+            # after another session update. Random UUID ordering is not recency.
+            row = db.execute("SELECT doc FROM workshop_objects WHERE owner=? AND kind='session' ORDER BY updated DESC,rowid DESC LIMIT 1", (owner,)).fetchone()
             return json.loads(row["doc"]) if row else None
 
     def history(self, owner, cursor=None, limit=20, kind="run"):

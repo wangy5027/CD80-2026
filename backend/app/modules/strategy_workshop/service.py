@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 from dataclasses import asdict
 import hashlib
 import json
@@ -167,6 +168,7 @@ class WorkshopService:
         with self.lock:
             with self.repository.transaction() as db:
                 doc = self.repository.get(db, owner, "session", session_id)
+                self._allow_strategy_changes(doc)
                 cached = self.repository.cached(db, owner, action, body)
                 if cached is not None:
                     return cached
@@ -198,6 +200,7 @@ class WorkshopService:
             fail("请选择接受策略或重新描述。", field="decision")
         with self.lock, self.repository.transaction() as db:
             doc = self.repository.get(db, owner, "session", session_id)
+            self._allow_strategy_changes(doc)
             action = "selection:" + session_id
             cached = self.repository.cached(db, owner, action, body)
             if cached is not None:
@@ -235,8 +238,62 @@ class WorkshopService:
         return {"files": files, "implementationHash": code_hash.hexdigest(), "pythonVersion": sys.version,
                 "archiveVersion": "workshop-package-1"}
 
+    @staticmethod
+    def _allow_strategy_changes(session):
+        if session.get("sourcePersonalAppId"):
+            fail("此处复用已保存应用的策略。若要修改买卖规则，请另开策略工坊需求。", 409, "saved_strategy_locked")
+
+    def _saved_strategy_package(self, db, owner, session):
+        """Resolve immutable source evidence; never use the mutable source session."""
+        app = self.repository.get(db, owner, "personal_app", session["sourcePersonalAppId"])
+        if app["runId"] != session.get("sourceRunId"):
+            fail("已保存策略的来源不一致。", 503, "snapshot_corrupt")
+        run = self.repository.get(db, owner, "run", app["runId"])
+        frozen = self._personal_app_snapshot(db, owner, run)
+        if any(app.get(name) != value for name, value in frozen.items()):
+            fail("已保存策略的冻结版本不一致。", 503, "snapshot_corrupt")
+        row = db.execute("SELECT doc FROM workshop_snapshots WHERE id=? AND owner=? AND kind='execution'",
+                         (run["executionSnapshotId"], owner)).fetchone()
+        package = json.loads(row["doc"])["package"]
+        # MarketData computes warmup using the current trusted implementation.
+        # Reject upgrades here rather than silently changing the saved algorithm.
+        if package["implementationHash"] != catalog.implementation_hash():
+            fail("该应用保存的策略运行版本与当前版本不同，暂时不能重新回测；原策略和结果仍然保留。",
+                 409, "saved_strategy_runtime_changed")
+        try:
+            actual_hash = hashlib.sha256()
+            for relative, encoded in sorted(package["files"].items()):
+                if (not isinstance(relative, str) or Path(relative).is_absolute() or ".." in Path(relative).parts
+                        or not relative.endswith(".py")):
+                    raise ValueError("Invalid archive path")
+                raw = base64.b64decode(encoded, validate=True)
+                actual_hash.update(relative.encode())
+                actual_hash.update(raw)
+            if actual_hash.hexdigest() != package["implementationHash"]:
+                raise ValueError("Archived package mismatch")
+            custom = package.get("custom")
+            if custom:
+                from .custom_rules import compile_strategy, plan_hash
+                if custom["runtimeHash"] != custom_runtime_digest():
+                    fail("该应用保存的自定义策略编译版本与当前版本不同，暂时不能重新回测；原策略和结果仍然保留。",
+                         409, "saved_strategy_runtime_changed")
+                if (compile_strategy(custom["rulePlan"]) != custom["sourceCode"]
+                        or plan_hash(custom["rulePlan"]) != custom["planHash"]
+                        or not custom["validation"].get("passed")
+                        or custom["validation"].get("sourceHash") != custom["sourceHash"]
+                        or custom["strategy"] != run["candidate"]["strategy"]):
+                    raise ValueError("Custom evidence mismatch")
+            source_candidate = {name: value for name, value in run["candidate"].items() if name != "selectionDigest"}
+            current_candidate = {name: value for name, value in session["candidate"].items() if name != "selectionDigest"}
+            if source_candidate != current_candidate:
+                raise ValueError("Saved candidate mismatch")
+        except (KeyError, TypeError, ValueError):
+            fail("已保存策略代码或校验证据不完整，暂时不能重新回测。", 503, "snapshot_corrupt")
+        return package
+
     def _custom_context(self, db, owner, session_id, body):
         doc = self.repository.get(db, owner, "session", session_id)
+        self._allow_strategy_changes(doc)
         candidate = doc.get("candidate")
         if (not candidate or doc["matchRevision"] != body["matchRevision"]
                 or candidate["selectionDigest"] != body["selectionDigest"]):
@@ -324,6 +381,7 @@ class WorkshopService:
                 if cached is not None:
                     return cached
                 doc = self.repository.get(db, owner, "session", session_id)
+                self._allow_strategy_changes(doc)
                 custom = doc.get("customization")
                 if (not custom or custom["id"] != body["customizationId"] or custom["status"] != "rules_ready"
                         or custom["rulesDigest"] != body["rulesDigest"] or custom["matchRevision"] != doc["matchRevision"]):
@@ -434,11 +492,14 @@ class WorkshopService:
                 if not doc.get("selectionApproval") or doc["selectionApproval"]["decision"] != "accept" or doc["selectionRevision"] != body["selectionRevision"]:
                     fail("请先确认当前匹配策略。", 409, "selection_required")
                 candidate = doc["candidate"]
-                if candidate["catalogRevision"] != catalog.implementation_hash():
+                saved_package = self._saved_strategy_package(db, owner, doc) if doc.get("sourcePersonalAppId") else None
+                if saved_package is None and candidate["catalogRevision"] != catalog.implementation_hash():
                     fail("策略代码已更新，请重新匹配并确认。", 409, "catalog_changed")
-            custom = doc.get("customization") if candidate.get("strategyKind") == "custom" else None
+            custom = None
+            if candidate.get("strategyKind") == "custom":
+                custom = saved_package.get("custom") if saved_package is not None else doc.get("customization")
             if custom:
-                if custom["status"] != "validated" or custom["id"] != candidate["customizationId"]:
+                if (saved_package is None and custom["status"] != "validated") or custom["id"] != candidate["customizationId"]:
                     fail("自定义策略尚未通过验证。", 409, "custom_validation_required")
                 if custom["runtimeHash"] != custom_runtime_digest():
                     fail("策略编译器已更新，请重新生成并验证自定义策略。", 409, "custom_runtime_changed")
@@ -449,8 +510,8 @@ class WorkshopService:
             snapshot = prepared.pop("snapshot", None)
             if not isinstance(snapshot, dict) or not all(k in snapshot for k in ("bars", "actions", "config", "instrument", "provenance")):
                 fail("行情适配未返回完整冻结输入。", 503, "invalid_market_snapshot")
-            package = self._archive_package()
-            if custom:
+            package = saved_package if saved_package is not None else self._archive_package()
+            if custom and saved_package is None:
                 package["custom"] = {key: custom[key] for key in ("id", "rulePlan", "rulesDigest", "planHash", "sourceCode", "sourceHash",
                     "ruleApproval", "validation", "skillVersion", "generationAttempts", "assumptions", "summary", "runtimeHash", "clarifications")}
                 package["custom"]["strategy"] = candidate["strategy"]
@@ -535,6 +596,8 @@ class WorkshopService:
                        "conversationSnapshotId": identifier("conversation"),
                        "createdAt": stamp, "updatedAt": stamp, "startedAt": None, "finishedAt": None,
                        "result": None, "error": None}
+                if session.get("sourcePersonalAppId"):
+                    run["sourcePersonalAppId"] = session["sourcePersonalAppId"]
                 # Read under the same RLock transaction; immutable snapshots are owner-bound.
                 market_row = db.execute("SELECT doc,sha256 FROM workshop_snapshots WHERE id=? AND owner=?", (frozen["marketSnapshotId"], owner)).fetchone()
                 code_row = db.execute("SELECT doc,sha256 FROM workshop_snapshots WHERE id=? AND owner=?", (frozen["packageSnapshotId"], owner)).fetchone()
@@ -574,7 +637,132 @@ class WorkshopService:
         return result
 
     def run(self, owner, run_id):
-        return self._public_run(self.repository.read(owner, "run", run_id))
+        with self.repository.transaction() as db:
+            result = self._public_run(self.repository.get(db, owner, "run", run_id))
+            app = self.repository.personal_app_for_run(db, owner, run_id)
+            result["personalApp"] = self._public_personal_app(app) if app else None
+            return result
+
+    @staticmethod
+    def _public_personal_app(app):
+        return safe_result({k: v for k, v in app.items() if k not in {"executionSnapshotId"}})
+
+    def _personal_app_snapshot(self, db, owner, run):
+        if run["status"] != "succeeded" or not isinstance(run.get("result"), dict) or not run["result"]:
+            fail("回测完成并得到结果后，才能添加到我的个人应用。", 409, "personal_app_result_required")
+        row = db.execute("SELECT doc,sha256 FROM workshop_snapshots WHERE id=? AND owner=? AND kind='execution'",
+                         (run.get("executionSnapshotId"), owner)).fetchone()
+        if not row:
+            fail("策略快照缺失，暂时无法保存或打开此应用。", 503, "snapshot_missing")
+        archived = json.loads(row["doc"])
+        snapshot_digest = digest(archived)
+        if snapshot_digest != row["sha256"]:
+            fail("冻结快照完整性检查失败。", 503, "snapshot_corrupt")
+        try:
+            package = archived["package"]
+            custom = package.get("custom")
+            if custom:
+                raw = custom["sourceCode"].encode("utf-8")
+                source_hash = hashlib.sha256(raw).hexdigest()
+                if custom["sourceHash"] != source_hash:
+                    raise ValueError("custom source hash mismatch")
+            else:
+                relative = "strategies/" + run["strategy"]["strategyId"] + ".py"
+                raw = base64.b64decode(package["files"][relative], validate=True)
+                source_hash = hashlib.sha256(raw).hexdigest()
+            if run["candidate"]["sourceHash"] != source_hash:
+                raise ValueError("candidate source hash mismatch")
+            return {"executionSnapshotId": run["executionSnapshotId"], "executionSnapshotDigest": snapshot_digest,
+                    "sourceHash": source_hash, "implementationHash": package["implementationHash"],
+                    "strategyKind": "custom" if custom else "catalog",
+                    "customizationId": custom["id"] if custom else None}
+        except (KeyError, TypeError, ValueError):
+            fail("冻结策略代码完整性检查失败。", 503, "snapshot_corrupt")
+
+    def save_personal_app(self, owner, run_id, body):
+        """Pin a completed strategy and its frozen inputs; never generate or execute."""
+        object_id(run_id, "runId")
+        fields(body, {"idempotencyKey"}, {"idempotencyKey"})
+        key(body)
+        with self.lock, self.repository.transaction() as db:
+            run = self.repository.get(db, owner, "run", run_id)
+            action = "personal-app:" + run_id
+            frozen = self._personal_app_snapshot(db, owner, run)
+            cached = self.repository.cached(db, owner, action, body)
+            if cached is not None:
+                return cached
+            app = self.repository.personal_app_for_run(db, owner, run_id)
+            if app is None:
+                stamp = now()
+                symbol = (run.get("requested") or {}).get("symbol") or (run.get("instrument") or {}).get("symbol", "")
+                strategy = run["strategy"]
+                app = {"id": self.repository.personal_app_id(run_id), "kind": "strategy", "personal": True,
+                       "name": strategy["name"] + (" · " + symbol if symbol else ""),
+                       "description": run.get("idea") or run["candidate"].get("summary", ""),
+                       "runId": run_id, "sessionId": run["sessionId"], "symbol": symbol,
+                       "strategy": strategy, "requested": run.get("requested"), "actual": run.get("actual"),
+                       "configDigest": run["configDigest"], "mode": run["mode"],
+                       "createdAt": stamp, "updatedAt": stamp, **frozen}
+                self.repository.insert(db, owner, "personal_app", app)
+            elif any(app.get(k) != v for k, v in frozen.items()):
+                fail("已保存策略的冻结版本不一致。", 503, "snapshot_corrupt")
+            response = {"app": self._public_personal_app(app)}
+            self.repository.remember(db, owner, action, body, response)
+            return response
+
+    def list_personal_apps(self, owner):
+        return [self._public_personal_app(app) for app in self.repository.personal_apps(owner)]
+
+    def personal_app(self, owner, app_id):
+        object_id(app_id, "appId")
+        with self.repository.transaction() as db:
+            app = self.repository.get(db, owner, "personal_app", app_id)
+            run = self.repository.get(db, owner, "run", app["runId"])
+            frozen = self._personal_app_snapshot(db, owner, run)
+            if any(app.get(k) != v for k, v in frozen.items()):
+                fail("已保存策略的冻结版本不一致。", 503, "snapshot_corrupt")
+            public_app = self._public_personal_app(app)
+            return {"app": public_app, "run": {**self._public_run(run), "personalApp": public_app}}
+
+    def personal_app_session(self, owner, app_id, body):
+        """Start a fresh configuration using this application's exact saved rules."""
+        self._health()
+        object_id(app_id, "appId")
+        fields(body, {"idempotencyKey", "languageStyle"}, {"idempotencyKey"})
+        key(body)
+        if "languageStyle" in body:
+            language_style(body["languageStyle"])
+        action = "personal-app-session:" + app_id
+        with self.lock, self.repository.transaction() as db:
+            app = self.repository.get(db, owner, "personal_app", app_id)
+            cached = self.repository.cached(db, owner, action, body)
+            if cached is not None:
+                return cached
+            run = self.repository.get(db, owner, "run", app["runId"])
+            candidate = copy.deepcopy(run["candidate"])
+            stamp, session_id = now(), identifier("ws")
+            candidate["selectionDigest"] = digest({"sessionId": session_id, "matchRevision": 1,
+                "sourcePersonalAppId": app_id, "sourceRunId": run["id"], "sourceHash": candidate["sourceHash"],
+                "candidateDigest": digest(run["candidate"])})
+            style = language_style(body.get("languageStyle", run.get("languageStyle", "beginner")))
+            defaults = {name: (run.get("requested") or {}).get(name) for name in
+                        ("symbol", "startDate", "endDate", "initialCash")}
+            doc = {"id": session_id, "sessionId": session_id, "idea": run["idea"], "status": "configuring",
+                   "revision": 1, "matchRevision": 1, "selectionRevision": 1, "configRevision": 0,
+                   "candidate": candidate, "baseCandidate": copy.deepcopy(candidate), "customization": None,
+                   "languageStyle": style, "sourcePersonalAppId": app_id, "sourceRunId": run["id"],
+                   "rerunDefaults": defaults, "preflightId": None, "runId": None,
+                   "selectionApproval": {"decision": "accept", "matchRevision": 1,
+                       "selectionDigest": candidate["selectionDigest"], "sourcePersonalAppId": app_id,
+                       "sourceRunId": run["id"], "at": stamp},
+                   "createdAt": stamp, "updatedAt": stamp}
+            package = self._saved_strategy_package(db, owner, doc)
+            if package.get("custom"):
+                doc["customization"] = {**copy.deepcopy(package["custom"]), "status": "validated",
+                    "ruleSummary": candidate.get("ruleSummary"), "languageStyle": style}
+            self.repository.insert(db, owner, "session", doc)
+            self.repository.remember(db, owner, action, body, doc)
+            return doc
 
     def history(self, owner, cursor=None):
         docs, next_cursor = self.repository.history(owner, cursor)

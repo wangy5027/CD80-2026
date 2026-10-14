@@ -6,6 +6,7 @@ import argparse
 import errno
 import os
 import signal
+import socket
 import sys
 from pathlib import Path
 
@@ -50,6 +51,39 @@ def site_path(value):
     return str((path if path.is_absolute() else SITE_ROOT / path).resolve())
 
 
+def reserve_listener(port):
+    """Own the port before initializing services that recover persisted jobs.
+
+    Waitress enables SO_REUSEADDR, which permits competing listeners on Windows.
+    A supplied socket with SO_EXCLUSIVEADDRUSE keeps that setting from being
+    enabled; Waitress tolerates the failed setsockopt and uses this listener.
+    Listening here also reserves the port on Unix before create_app runs.
+    """
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        option = socket.SO_EXCLUSIVEADDRUSE if sys.platform == "win32" else socket.SO_REUSEADDR
+        listener.setsockopt(socket.SOL_SOCKET, option, 1)
+        listener.bind(("127.0.0.1", port))
+        listener.listen(1024)
+        return listener
+    except BaseException:
+        listener.close()
+        raise
+
+
+def startup_error(error, port):
+    if error.errno in {errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", 10048), errno.EACCES, 10013}:
+        alternate = 8894 if port == 8893 else 8893
+        print(
+            f"端口 {port} 已被占用或不允许绑定。请检查已有进程和端口权限，或换一个端口：\n"
+            f"  python main.py --port {alternate}",
+            file=sys.stderr,
+        )
+    else:
+        print(f"网站启动失败：{error}", file=sys.stderr)
+    raise SystemExit(2) from None
+
+
 def main():
     prefer_site_venv()
     create_server, create_app = load_dependencies()
@@ -63,29 +97,33 @@ def main():
         overrides["DESKTOP_PORT"] = args.port
     if args.data_dir is not None:
         overrides["DATA_DIR"] = site_path(args.data_dir)
-    app = create_app(overrides)
+    from backend.app.config import Config
+    port = overrides.get("DESKTOP_PORT", Config.DESKTOP_PORT)
     try:
+        listener = reserve_listener(port)
+    except OSError as error:
+        startup_error(error, port)
+    overrides["DESKTOP_PORT"] = listener.getsockname()[1]
+    app = None
+    try:
+        app = create_app(overrides)
         server = create_server(
             app,
-            host="127.0.0.1",
-            port=app.config["DESKTOP_PORT"],
+            sockets=[listener],
             threads=8,
             max_request_body_size=app.config["MAX_CONTENT_LENGTH"],
         )
     except OSError as error:
-        app.extensions["workbench_service"].close()
-        if error.errno in {errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", 10048), errno.EACCES, 10013}:
-            port = app.config["DESKTOP_PORT"]
-            alternate = 8894 if port == 8893 else 8893
-            print(
-                f"端口 {port} 已被占用或不允许绑定。请检查已有进程和端口权限，或换一个端口：\n"
-                f"  python main.py --port {alternate}",
-                file=sys.stderr,
-            )
-        else:
-            print(f"网站启动失败：{error}", file=sys.stderr)
-        raise SystemExit(2) from None
-    port = server.effective_port
+        if app is not None:
+            app.extensions["workbench_service"].close()
+        listener.close()
+        startup_error(error, port)
+    except BaseException:
+        if app is not None:
+            app.extensions["workbench_service"].close()
+        listener.close()
+        raise
+    port = int(server.effective_port)
     app.config["DESKTOP_PORT"] = port
 
     def stop(_signal, _frame):
@@ -106,6 +144,7 @@ def main():
     finally:
         app.extensions["workbench_service"].close()
         server.close()
+        listener.close()
 
 
 if __name__ == "__main__":

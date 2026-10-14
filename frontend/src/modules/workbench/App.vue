@@ -1,10 +1,13 @@
 <script setup>
-import { computed, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
+import { accountDraftKey, clearDraft, readDraft, writeDraft } from './draftStore.js';
+import { prepareStrategyHandoff, workshopRequirement } from '../app-workshop/handoff.js';
 import Icon from './components/Icon.vue';
 import Composer from './components/Composer.vue';
 import AgentPlatformPanel from './components/AgentPlatformPanel.vue';
 import { useWorkbench } from './useWorkbench.js';
 import { fileLabel, fileIdentityHint } from './fileLabels.js';
+const AppWorkshop = defineAsyncComponent(() => import('../app-workshop/AppWorkshop.vue'));
 const StrategyWorkshop = defineAsyncComponent(() => import('../strategy-workshop/StrategyWorkshop.vue'));
 
 const {
@@ -19,6 +22,26 @@ const {
   onConversationScroll,
 } = useWorkbench();
 const knownFile = file => s.files.find(item => String(item.id) === String(file.id)) || file;
+const personalStrategyAppId = ref('');
+const personalStrategyKey = () => accountDraftKey(s.user?.id, 'personal-strategy-app', 'current');
+watch(() => s.user?.id, () => { personalStrategyAppId.value = readDraft(personalStrategyKey()) || ''; }, { immediate: true });
+function openStrategyWorkshop() {
+  clearDraft(personalStrategyKey());
+  personalStrategyAppId.value = '';
+  setView('strategy-workshop');
+}
+function openPersonalStrategyApp(app) {
+  if (!app?.id) return;
+  personalStrategyAppId.value = app.id;
+  writeDraft(personalStrategyKey(), app.id);
+  setView('strategy-workshop');
+}
+async function onStrategyAppSaved() {
+  const owner = String(s.user?.id || '');
+  setView('applications');
+  await nextTick();
+  if (owner === String(s.user?.id || '')) await platform.refresh();
+}
 
 const prompts = [
   { title: '看看我能做什么', icon: 'code', text: '介绍一下你能帮我做什么，并列出适合现在开始的三个任务。' },
@@ -26,6 +49,23 @@ const prompts = [
   { title: '创建文件处理应用', icon: 'spark', text: '我想创建一个处理 CSV 的应用，请先和我确认分组列、求和列和输出要求，再展示流程供我确认。' },
 ];
 const taskFailure = computed(() => s.streaming ? '' : s.streamError || s.currentTask?.error || '');
+
+async function onWorkshopHandoff(value) {
+  const requirement = workshopRequirement(value.session, value.requirement);
+  if (value.target.kind === 'strategy-workshop') {
+    prepareStrategyHandoff(s.user?.id, requirement);
+    openStrategyWorkshop();
+  } else {
+    const owner = String(s.user?.id || '');
+    setView('applications'); await nextTick();
+    if (owner === String(s.user?.id || '')) await platform.openFromWorkshop(value.target.agentRef, requirement, value.inputs);
+  }
+}
+async function onWorkshopSaved(value) {
+  const owner = String(s.user?.id || '');
+  setView('applications'); await nextTick();
+  if (owner === String(s.user?.id || '')) await platform.openFromWorkshop(value.agentRef, workshopRequirement(value.session), {}, value.entry);
+}
 
 function onRenderedMessageClick(event, message) {
   const button = event.target.closest('[data-action="copy-code"]');
@@ -91,7 +131,8 @@ function onDialogKeydown(event) {
           <button class="nav-row" :class="{ active: s.view === 'home' && !s.currentTask }" type="button" @click="newTask"><Icon name="addCircle" /><span>新任务</span></button>
           <button class="nav-row" :class="{ active: s.view === 'schedule' }" type="button" @click="setView('schedule')"><Icon name="calendar" /><span>日程</span></button>
           <button class="nav-row" :class="{ active: s.view === 'applications' }" type="button" @click="setView('applications')"><Icon name="grid" /><span>应用</span></button>
-          <button class="nav-row" :class="{ active: s.view === 'strategy-workshop' }" type="button" aria-label="策略工坊" title="策略工坊" @click="setView('strategy-workshop')"><Icon name="spark" /><span>策略工坊</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'app-workshop' }" type="button" aria-label="应用工坊" title="应用工坊" @click="setView('app-workshop')"><Icon name="grid" /><span>应用工坊</span></button>
+          <button class="nav-row" :class="{ active: s.view === 'strategy-workshop' }" type="button" aria-label="策略工坊" title="策略工坊" @click="openStrategyWorkshop"><Icon name="spark" /><span>策略工坊</span></button>
           <button class="nav-row" :class="{ active: s.view === 'extensions' }" type="button" @click="setView('extensions')"><Icon name="grid" /><span>扩展</span></button>
           <button class="nav-row" :class="{ active: s.view === 'files' }" type="button" @click="setView('files')"><Icon name="folder" /><span>文件</span></button>
         </nav>
@@ -161,10 +202,12 @@ function onDialogKeydown(event) {
 
       <section v-else-if="s.view === 'applications'" class="page">
         <div class="page-header"><div><h1 class="page-title">应用</h1><p class="page-subtitle">复用已经保存的流程，用新的输入完成任务。</p></div><div class="toolbar-actions"><button class="secondary-button" :disabled="platform.p.loading" @click="platform.refresh">同步状态</button><button class="primary-button" :disabled="s.streaming" @click="newTask(); s.interactionMode = 'platform'">对话创建应用</button></div></div>
-        <div class="page-body"><div class="surface-card"><h2>AI 策略工坊</h2><p>把投资想法匹配为固定策略，查看规则并进行历史行情验证。</p><button class="secondary-button" type="button" @click="setView('strategy-workshop')">打开策略工坊</button></div><AgentPlatformPanel :platform="platform" :files="s.files" catalog @upload="payload => chooseFiles('agent', payload)" @open-task="openTask" /></div>
+        <div class="page-body"><div class="surface-card"><h2>应用工坊</h2><p>说说金融需求，使用推荐应用，或从应用池组合、修改出你的新应用。</p><button class="secondary-button" type="button" @click="setView('app-workshop')">打开应用工坊</button></div><div class="surface-card"><h2>AI 策略工坊</h2><p>把投资想法匹配为固定策略，查看规则并进行历史行情验证。</p><button class="secondary-button" type="button" @click="openStrategyWorkshop">打开策略工坊</button></div><AgentPlatformPanel :platform="platform" :files="s.files" catalog @open-strategy-app="openPersonalStrategyApp" @upload="payload => chooseFiles('agent', payload)" @open-task="openTask" /></div>
       </section>
 
-      <section v-else-if="s.view === 'strategy-workshop'" class="page"><div class="strategy-workshop-host"><StrategyWorkshop :key="String(s.user?.id || '')" :owner-key="s.user?.id" /></div></section>
+      <section v-else-if="s.view === 'app-workshop'" class="page app-workshop-host"><AppWorkshop :key="String(s.user?.id || '')" :owner-key="s.user?.id" @handoff="onWorkshopHandoff" @saved="onWorkshopSaved" /></section>
+
+      <section v-else-if="s.view === 'strategy-workshop'" class="page"><div class="strategy-workshop-host"><StrategyWorkshop :key="String(s.user?.id || '') + ':' + personalStrategyAppId" :owner-key="s.user?.id" :personal-app-id="personalStrategyAppId" @saved="onStrategyAppSaved" @new-session="clearDraft(personalStrategyKey())" /></div></section>
 
       <section v-else-if="s.view === 'schedule'" class="page">
         <div class="page-header"><div><h1 class="page-title">日程</h1><p class="page-subtitle">把要做的事放在这里。工作台运行时会提醒到期日程。</p></div><div class="toolbar-actions"><button class="primary-button" type="button" @click="showModal('schedule')"><Icon name="add" small /> 新建日程</button></div></div>
@@ -276,5 +319,5 @@ function onDialogKeydown(event) {
 </template>
 
 <style scoped>
-.strategy-workshop-host { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #45423f transparent; }
+.strategy-workshop-host, .app-workshop-host { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #45423f transparent; }
 </style>
