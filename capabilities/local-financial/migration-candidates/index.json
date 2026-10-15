@@ -1,0 +1,135 @@
+{
+  "status": "unpublished_candidates",
+  "packages": [
+    {
+      "package": "cd80-history-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "3b1ad6dd8db51c54c30a83565d776a726cc28237ca1f1831e4d0dc5fddfd866c"
+    },
+    {
+      "package": "cd80-history.zip",
+      "kind": "skill",
+      "manifestDigest": "595c183de4a03b04539d73c6378dd05890c0e538a67ba2ccafd5cc8e59afca2d"
+    },
+    {
+      "package": "cd80-announcement-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "17a8ba1587ec6b1e2b02118d244bac6183cb0f17d07fb5cd8b07bbbd19c1c733"
+    },
+    {
+      "package": "cd80-announcement.zip",
+      "kind": "skill",
+      "manifestDigest": "bf7fb2b267b73333fb88bd2aa8e9ee5a2a13e21542db32fa875e4c71443de972"
+    },
+    {
+      "package": "cd80-margin-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "45c53fa06821a6faa9ff2eeb43ab9e4a7d78b590e4d4e61d338c10c6fa708622"
+    },
+    {
+      "package": "cd80-margin.zip",
+      "kind": "skill",
+      "manifestDigest": "fd730aa173a789550ef170eaa7573d3f3974c349c64c65d4438422c97514fd86"
+    },
+    {
+      "package": "cd80-security-search-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "54866ffcf968052a49345fb85ec8ce2930f5fafb5630b761e39d436b6feeb1e8"
+    },
+    {
+      "package": "cd80-security-search.zip",
+      "kind": "skill",
+      "manifestDigest": "685af5aa80440364d1b87e57610e6c5fcd28e25c4f2cb9da6dc27f3b82bfd07e"
+    },
+    {
+      "package": "cd80-close-valuation-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "b6b5f83d5cdf5858a0c60a4ceefc7861f42661625663d45ff57b582f447459b1"
+    },
+    {
+      "package": "cd80-close-valuation.zip",
+      "kind": "skill",
+      "manifestDigest": "a55f6e64ef2effde8d9dda9a5696eb3a05cb5c7d5ddf24a9a71d6a126610812d"
+    },
+    {
+      "package": "cd80-financial-statement-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "7db7302db69559e8b3cd7607b086773b32662697b869ed8d6ac44efbc09b9f89"
+    },
+    {
+      "package": "cd80-financial-statement.zip",
+      "kind": "skill",
+      "manifestDigest": "d4734628b70c6ea4a286990e374382723467a853f2cbebbb0ea512e709f4b764"
+    },
+    {
+      "package": "cd80-lhb-detail-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "8d34380fe84e4e7b26fa81effc2ec623c90025587cf1e84a47b55eb71ee4980f"
+    },
+    {
+      "package": "cd80-lhb-detail.zip",
+      "kind": "skill",
+      "manifestDigest": "1f5dd0db5791231280f9f48aa539fcade2d12dbbae0b8168e19587164f72116c"
+    },
+    {
+      "package": "cd80-macro-series-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "3cbaf9229022ea134d4c056b4338a8b4bee1b88015a3244e23cb6fd6c113864c"
+    },
+    {
+      "package": "cd80-macro-series.zip",
+      "kind": "skill",
+      "manifestDigest": "d29d30f63e5d53684f2f3ebaed4a7ff3fddb79a5cab5d16fc1ef5750443864e3"
+    },
+    {
+      "package": "cd80-event-calendar-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "0c30c04abdf6013ddf4a85f5f4a5e2697314ed994a1f3d9d0315e7b389c49b3b"
+    },
+    {
+      "package": "cd80-event-calendar.zip",
+      "kind": "skill",
+      "manifestDigest": "f0e07681af4dae5e1bd3ee3b233ad1965d1d93b5278a0e9c12d9c8cb93667044"
+    },
+    {
+      "package": "cd80-local-search-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "7449870465df7dace230d3fd9a53ffa5c01df7b150eb18b8728f5a623af06210"
+    },
+    {
+      "package": "cd80-local-search.zip",
+      "kind": "skill",
+      "manifestDigest": "80145bd5e3751cbe1ca749b7adecd8e7745c760fcfd1d05878f6e946c439b23b"
+    },
+    {
+      "package": "cd80-csv-export-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "030a51e9dbd88eab03e021d9bf506da228472f2498cde59b237ba91dfd1172ff"
+    },
+    {
+      "package": "cd80-financial-compute-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "d4cfadb336d58bb3fe2293a8bdf60e7d3bdeb64a8fa1446af918bcc4322f7086"
+    },
+    {
+      "package": "cd80-financial-compute.zip",
+      "kind": "skill",
+      "manifestDigest": "caf6c0fa7b752b6bfb2ad30552a31013316e0775823a47f083ce941c086dc474"
+    },
+    {
+      "package": "cd80-news-tool.zip",
+      "kind": "tool",
+      "manifestDigest": "63e92f506d97e8c624591c4ac278888539c10273050579d73e254e2ac5a4b823"
+    },
+    {
+      "package": "cd80-news.zip",
+      "kind": "skill",
+      "manifestDigest": "0779379be3f219957622a022f72a39924328f28853c91d1f6a3d281b447553c8"
+    },
+    {
+      "package": "cd80-table.zip",
+      "kind": "skill",
+      "manifestDigest": "540529443d74e3dcc3b0b8bc285e5e6fad1d9633db6f3ac970f53664fdc0b2cd"
+    }
+  ]
+}

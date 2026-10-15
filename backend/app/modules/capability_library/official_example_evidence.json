@@ -1,0 +1,46 @@
+{
+  "createdAt": "2026-10-13T08:45:50.565Z",
+  "python": "3.11.5",
+  "system": "Windows-10-10.0.26200-SP0",
+  "temporaryData": true,
+  "examples": [
+    {
+      "folder": "decimal-total",
+      "id": "getting-started",
+      "manifestDigest": "7b9a389815e4c1d537604bc7e03e97d9f2bf7ef8a0e42fbcf38fe57314e7232a",
+      "contentDigest": "0ab541bf07f5a3ce72bce94cda3abfa0806053a50fcd77bb2eb29402fb27be4e",
+      "configurationDigest": "7932d6eaed96061eb28d907039529a6454fb7198289d707a32b3e0b1b320ab7e",
+      "kind": "tool",
+      "criteria": null,
+      "status": "passed",
+      "result": {
+        "artifacts": [],
+        "content": {
+          "total": "0.30"
+        },
+        "sources": []
+      }
+    },
+    {
+      "folder": "summary-skill",
+      "id": "getting-started",
+      "manifestDigest": "158325ea1ed2a682e4b852e75df7f68b722b1fb375474240f517d43979b66c34",
+      "contentDigest": "fd0c279e94e2fe267e530d9b5c4402abaa12ace0c755987c3c04998b91c937f6",
+      "configurationDigest": "b6d35e05b8f3561e7892e546fadbfcd9ca56d2108204840f67785fc4e3426428",
+      "kind": "skill",
+      "criteria": "准确保留 12、9、3 的含义；不编造等待原因、负责人或期限；结论以原资料为依据，不要求逐字一致。",
+      "status": "awaiting_review",
+      "result": {
+        "content": "我先读取方法资料，再按其要求进行摘要。已按 `references/method.md` 的要求（区分事实、缺失信息与结论，保留数值单位）对本周材料进行摘要：\n\n## 摘要\n\n**事实（材料中明确提供）**\n- 本周收到客户反馈：12 条\n- 已处理：9 条\n- 其余 3 条：状态为等待确认\n\n**缺失信息（材料中未提供，不予补充）**\n- 等待确认的 3 条具体需由谁确认、确认内容是什么\n- 客户反馈的分类、内容与严重程度\n- 已处理 9 条的处理方式、处理时长与结果\n- 是否存在超时或跟踪机制\n\n**结论（仅由上述事实推导，不添加原因）**\n- 未处理反馈 = 12 条 − 9 条 = 3 条，与\"其余 3 条等待确认\"一致\n- 已处理占比：9/12（75%）；等待确认占比：3/12（25%）\n- 本周反馈全部已进入处理或等待确认状态，无材料显示遗漏项\n\n未补充任何原因或外部数据。"
+      },
+      "review": {
+        "decision": "accept",
+        "reviewer": "本次开发代理按已确认标准复核",
+        "comment": "保留12条收到、9条处理、3条等待确认的事实；缺失信息单列，没有补充原因、负责人或期限；百分比可由原材料核算。"
+      }
+    }
+  ],
+  "model": "GLM-5.3",
+  "runnerRevision": "905902b105161ba66c21537358e6ee9b9440c35703bce6010fdfa4b09c26f4b6",
+  "executionPassed": true
+}

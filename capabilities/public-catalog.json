@@ -1,0 +1,114 @@
+{
+  "packages": [
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-announcement-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-close-valuation-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-csv-export-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-event-calendar-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-financial-compute-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-financial-statement-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-history-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-lhb-detail-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-local-search-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-macro-series-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-margin-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-news-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-security-search-tool.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-announcement.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-close-valuation.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-event-calendar.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-financial-compute.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-financial-statement.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-history.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-lhb-detail.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-local-search.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-macro-series.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-margin.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-news.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-security-search.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    },
+    {
+      "package": "local-financial/releases/a313dfa6495c3fad/cd80-table.zip",
+      "evidence": "local-financial/releases/a313dfa6495c3fad/evidence.json"
+    }
+  ],
+  "retiredCapabilities": [
+    "sfc-announcement",
+    "sfc-history",
+    "sfc_announcements",
+    "sfc_history"
+  ]
+}

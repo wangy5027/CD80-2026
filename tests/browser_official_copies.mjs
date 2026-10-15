@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir,writeFile} from 'node:fs/promises';
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE_DIR||'playwright');
+const browser=await chromium.launch({headless:true,channel:'msedge'});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});
+const out='data/official-copies-browser';await mkdir(out,{recursive:true});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const button=name=>page.getByRole('button',{name,exact:true});
+const base='http://127.0.0.1:48996/desktop/api/capabilities';
+const saved='官方连接和所需工具已由平台准备，无需填写地址或密钥。请测试效果，再决定启用。';
+try{
+ await page.goto('http://127.0.0.1:48996/desktop/');await button('创建账号').click();
+ await page.locator('input[name="name"]').fill('重复副本测试');await page.locator('input[name="email"]').fill(`copies-${Date.now()}@example.invalid`);
+ await page.locator('input[name="password"]').fill('fixture-password');await page.locator('form button[type="submit"]').click();await button('扩展').click();
+ await page.getByLabel('能力目录').selectOption('public');await page.getByRole('tab',{name:/Skills/}).click();
+ await page.locator('.cap-card').filter({hasText:'已接入财经新闻'}).click();await button('保存个人副本').click();await page.getByText(saved,{exact:true}).waitFor();
+ await button('← 返回能力列表').click();await page.getByLabel('能力目录').selectOption('public');
+ const card=page.locator('.cap-card').filter({hasText:'已接入财经新闻'});await card.getByText(/已添加到我的库/).waitFor();await card.click();
+ page.once('dialog',d=>d.dismiss());await button('保存个人副本').click();assert.equal(await button('保存个人副本').count(),1);
+ page.once('dialog',d=>d.accept());await button('保存个人副本').click();await page.getByText(saved,{exact:true}).waitFor();
+ await page.locator('.cap-detail-heading h2').filter({hasText:'已接入财经新闻_2'}).waitFor();
+ const personal=(await(await page.request.get(base+'/assets?limit=100')).json()).items;
+ assert.equal(personal.filter(a=>a.kind==='skill').length,2);assert.equal(personal.filter(a=>a.kind==='tool').length,1);
+ await page.screenshot({path:out+'/skill-copy.png'});
+ await button('← 返回能力列表').click();await page.getByLabel('能力目录').selectOption('public');await page.getByRole('tab',{name:/Tools/}).click();
+ const toolCard=page.locator('.cap-card').filter({hasText:'cd80/cd80-news-tool'});await toolCard.getByText(/已添加到我的库/).waitFor();await toolCard.click();
+ page.once('dialog',d=>d.accept());await button('保存个人副本').click();await page.getByText(saved,{exact:true}).waitFor();assert.match(await page.locator('.cap-detail-heading h2').innerText(),/_2$/);
+ await button('应用').click();const official=page.locator('.agent-catalog-card').filter({hasText:'预置应用'}).first();
+ await official.getByRole('button',{name:'添加到我的库',exact:true}).click();await official.getByText(/已添加到我的库/).waitFor();
+ page.once('dialog',d=>d.dismiss());await official.getByRole('button',{name:'添加到我的库',exact:true}).click();
+ assert.equal(await page.locator('.agent-catalog-card').filter({hasText:'个人应用'}).count(),1);
+ page.once('dialog',d=>d.accept());await official.getByRole('button',{name:'添加到我的库',exact:true}).click();
+ await page.locator('.agent-catalog-card h3').filter({hasText:/_2$/}).waitFor();
+ assert.equal(await page.locator('.agent-catalog-card').filter({hasText:'个人应用'}).count(),2);assert.deepEqual(errors,[]);
+ await page.screenshot({path:out+'/application-copies.png'});
+ await writeFile(out+'/report.json',JSON.stringify({passed:true,checks:['官方Skill标识','重复取消与确认','Skill独立名称_2','依赖Tool不重复','官方Tool标识与重复命名','Application标识与重复确认命名'],errors},null,2));
+}catch(e){await page.screenshot({path:out+'/failure.png',fullPage:true});throw e;}finally{await browser.close();}

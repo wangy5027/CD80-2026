@@ -1,0 +1,95 @@
+# Local credentials and machine-specific settings
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+.codex/
+.aws/
+
+# Installed dependencies and interpreter/test caches (at any depth)
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+*.egg-info/
+
+# Local databases, user uploads, generated runs and logs
+data/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.sqlite-*
+*.db
+*.db-*
+*.building
+*.tmp
+test-results/
+playwright-report/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# frontend/dist is intentionally versioned: local startup serves it directly.
+
+# Local service supervision
+.run/
+
+.local-backups/
+
+# Public source releases exclude private agent settings and export credentials.
+.agents/
+credentials.json
+credentials.*.json
+secrets.json
+secrets.*.json
+*.token
+*.secret
+.netrc
+.npmrc
+
+# Local history, acceptance captures, archives and development journals.
+# Keep product history code, deterministic fixtures, and official release packages.
+/docs/archive/
+/docs/records/
+/docs/**/验收记录/
+/docs/sqlite-sync-qa/
+/docs/**/开发进度.md
+/docs/项目状态.md
+/CHANGELOG.md
+/examples/official-history-app/*acceptance.json
+/capabilities/local-financial/release-evidence.json
+/capabilities/local-financial/pre-migration-catalog.json
+
+# Standalone historical acceptance summaries (not product specs/test plans).
+/docs/integration/平台创作Flash验收.md
+/docs/integration/平台真实依赖验收.md
+/docs/integration/Windows失败项审计.md
+
+# Private delivery bundles/backups are never public source.
+/backups/
+/backup/
+/本地发布备份/
+/比赛演示交付/
+*.bak
+*.backup

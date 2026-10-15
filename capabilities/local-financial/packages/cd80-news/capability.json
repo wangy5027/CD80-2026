@@ -1,0 +1,48 @@
+{
+  "format": "cd80.capability/1",
+  "kind": "skill",
+  "name": "已接入财经新闻",
+  "description": "已接入财经新闻；只使用明确接入数据，注明来源日期和缺口。",
+  "source": {
+    "identity": "cd80/cd80-news",
+    "format": "platform",
+    "version": "1.0.0"
+  },
+  "files": [
+    {
+      "path": "original/SKILL.md",
+      "sha256": "11738eec1630fccf27a3c3b67ec20d70cffd48673851bb979b8cca613a0a500b",
+      "size": 709
+    }
+  ],
+  "dependencies": [
+    {
+      "sourceIdentity": "cd80/cd80-news-tool",
+      "contentDigest": "fe8f831e74a56b2f9de98249169b7397cfa808be20346bb89fca9463622a044c",
+      "required": true,
+      "reason": "读取已接入的业务数据"
+    }
+  ],
+  "permissions": {
+    "network": "none",
+    "externalEffects": "none",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "skill": {
+    "entry": "original/SKILL.md"
+  },
+  "examples": [
+    {
+      "id": "real-skill",
+      "title": "已接入财经新闻对话示例",
+      "description": "调用依赖工具，按实际数据回答。",
+      "requirements": [
+        "先复制并验证启用依赖Tool，再复制本Skill。"
+      ],
+      "filePaths": [],
+      "prompt": "读取东方财富最新3条财经新闻，说明来源和缓存状态；如果读取失败请直接说明，不换来源。",
+      "criteria": "必须实际调用依赖Tool；数值与返回一致；注明来源和日期及必要单位；不补造缺失数据，不调用南财，不把历史数据当实时。新闻读取失败不算本次发布成功。"
+    }
+  ]
+}

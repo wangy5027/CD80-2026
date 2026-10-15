@@ -1,0 +1,45 @@
+{
+  "format": "cd80.capability/1",
+  "dependencies": [],
+  "permissions": {
+    "network": "none",
+    "externalEffects": "none",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "kind": "skill",
+  "name": "资料摘要方法",
+  "description": "只根据本轮给定资料形成摘要。",
+  "source": {
+    "identity": "org.example/summary-skill",
+    "format": "agent_skills"
+  },
+  "files": [
+    {
+      "path": "original/references/method.md",
+      "sha256": "f940e74eba1654e45dfa4b2d237f0d7979c236439642b0181e508464a322a921",
+      "size": 100
+    },
+    {
+      "path": "original/SKILL.md",
+      "sha256": "15fa571c88aaebdf68a38663038fb0b76f8aeb5a02510e22610cf5081d610f50",
+      "size": 237
+    }
+  ],
+  "skill": {
+    "entry": "original/SKILL.md"
+  },
+  "examples": [
+    {
+      "title": "资料摘要：区分事实与缺失信息",
+      "description": "只总结本轮提供的资料，不查询外部信息。也可以用来总结一段文章。",
+      "prompt": "请使用资料摘要方法总结：本周收到客户反馈 12 条，已处理 9 条，其余 3 条等待确认。区分事实、缺失信息和结论，不补充原因。",
+      "criteria": "准确保留 12、9、3 的含义；不编造等待原因、负责人或期限；结论以原资料为依据，不要求逐字一致。",
+      "id": "getting-started",
+      "requirements": [
+        "保存为个人副本后运行示例；验证通过再主动启用。"
+      ],
+      "filePaths": []
+    }
+  ]
+}

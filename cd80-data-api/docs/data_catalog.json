@@ -1,0 +1,5437 @@
+{
+  "tables": [
+    {
+      "name": "cd80_anns_d",
+      "title": "Listed-company announcement metadata, including announcement date, security ticker, security name, announcement title, and source document URL.",
+      "row_count": 1852567,
+      "source_rows": 1852567,
+      "fields": [
+        {
+          "name": "announcement_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "ticker",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Ticker"
+        },
+        {
+          "name": "security_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Security Name"
+        },
+        {
+          "name": "announcement_title",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Announcement Title"
+        },
+        {
+          "name": "url",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Source Document URL"
+        }
+      ]
+    },
+    {
+      "name": "cd80_bond_cb_basic",
+      "title": "Convertible bond basic information.",
+      "row_count": 1137,
+      "source_rows": 1137,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "bond_full_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Bond Full Name"
+        },
+        {
+          "name": "bond_short_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Bond Short Name"
+        },
+        {
+          "name": "cb_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Conversion Application Code"
+        },
+        {
+          "name": "stk_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Underlying Stock Code"
+        },
+        {
+          "name": "stk_short_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Underlying Stock Short Name"
+        },
+        {
+          "name": "maturity",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Maturity"
+        },
+        {
+          "name": "par",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Par Value"
+        },
+        {
+          "name": "issue_price",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Issue Price"
+        },
+        {
+          "name": "issue_size",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Issue Size"
+        },
+        {
+          "name": "remain_size",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Remaining Size"
+        },
+        {
+          "name": "value_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Value Date"
+        },
+        {
+          "name": "maturity_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Maturity Date"
+        },
+        {
+          "name": "rate_type",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Rate Type"
+        },
+        {
+          "name": "coupon_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Coupon Rate"
+        },
+        {
+          "name": "add_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Additional Rate"
+        },
+        {
+          "name": "pay_per_year",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Payment Frequency Per Year"
+        },
+        {
+          "name": "list_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Listing Date"
+        },
+        {
+          "name": "delist_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Delisting Date"
+        },
+        {
+          "name": "exchange",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Exchange"
+        },
+        {
+          "name": "conv_start_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Conversion Start Date"
+        },
+        {
+          "name": "conv_end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Conversion End Date"
+        },
+        {
+          "name": "conv_stop_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Conversion Stop Date"
+        },
+        {
+          "name": "first_conv_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Initial Conversion Price"
+        },
+        {
+          "name": "conv_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Latest Conversion Price"
+        },
+        {
+          "name": "rate_clause",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Rate Clause"
+        },
+        {
+          "name": "issue_rating",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Issue Rating"
+        },
+        {
+          "name": "newest_rating",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Newest Rating"
+        },
+        {
+          "name": "rating_comp",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Rating Company"
+        }
+      ]
+    },
+    {
+      "name": "cd80_bond_cb_dd",
+      "title": "Convertible bond market quotes.",
+      "row_count": 411292,
+      "source_rows": 411292,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "pre_close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Previous Close Price"
+        },
+        {
+          "name": "open",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Open Price"
+        },
+        {
+          "name": "high",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "High Price"
+        },
+        {
+          "name": "low",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Low Price"
+        },
+        {
+          "name": "close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Close Price"
+        },
+        {
+          "name": "change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Change"
+        },
+        {
+          "name": "pct_chg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Percentage Change"
+        },
+        {
+          "name": "vol",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Volume"
+        },
+        {
+          "name": "amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Amount"
+        },
+        {
+          "name": "bond_value",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Bond Value"
+        },
+        {
+          "name": "bond_over_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Bond Over Rate(%)"
+        },
+        {
+          "name": "cb_value",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Conversion Value"
+        },
+        {
+          "name": "cb_over_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Conversion Over Rate(%)"
+        }
+      ]
+    },
+    {
+      "name": "cd80_bond_cb_redeem",
+      "title": "Information such as maturity redemption and mandatory redemption of convertible bonds.",
+      "row_count": 2965,
+      "source_rows": 2965,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "call_type",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Call Type"
+        },
+        {
+          "name": "is_call",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Is Call"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "call_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Call Date"
+        },
+        {
+          "name": "call_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Call Price (Tax Included)"
+        },
+        {
+          "name": "call_price_tax",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Call Price (Tax Deducted)"
+        },
+        {
+          "name": "call_vol",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Call Volume"
+        },
+        {
+          "name": "call_amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Call Amount"
+        },
+        {
+          "name": "payment_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Payment Date"
+        },
+        {
+          "name": "call_reg_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Call Registration Date"
+        }
+      ]
+    },
+    {
+      "name": "cd80_cb_price_chg",
+      "title": "Convertible bond conversion price change data, including bond ticker, bond name, publication date, effective change date, and conversion prices before and after each adjustment.",
+      "row_count": 318,
+      "source_rows": 318,
+      "fields": [
+        {
+          "name": "ticker",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Ticker"
+        },
+        {
+          "name": "bond_short_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Convertible Bond Short Name"
+        },
+        {
+          "name": "publication_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Publication Date"
+        },
+        {
+          "name": "change_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Conversion Price Change Date"
+        },
+        {
+          "name": "initial_conversion_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Initial Conversion Price"
+        },
+        {
+          "name": "conversion_price_before",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Conversion Price Before Change"
+        },
+        {
+          "name": "conversion_price_after",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Conversion Price After Change"
+        }
+      ]
+    },
+    {
+      "name": "cd80_ci_index_member",
+      "title": "Extract Shenwan industry constituents by three-level classification. It can provide all constituents of a certain classification, or retrieve the classification a stock belongs to by stock code, with flexible parameters.",
+      "row_count": 4268,
+      "source_rows": 4268,
+      "fields": [
+        {
+          "name": "l1_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "L1 Code"
+        },
+        {
+          "name": "l1_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "L1 Name"
+        },
+        {
+          "name": "l2_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "L2 Code"
+        },
+        {
+          "name": "l2_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "L2 Name"
+        },
+        {
+          "name": "l3_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "L3 Code"
+        },
+        {
+          "name": "l3_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "L3 Name"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Name"
+        },
+        {
+          "name": "in_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Inclusion Date"
+        },
+        {
+          "name": "out_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Exclusion Date"
+        },
+        {
+          "name": "is_new",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Is Latest"
+        }
+      ]
+    },
+    {
+      "name": "cd80_cn_cpi",
+      "title": "CPI Consumer Price Index data.",
+      "row_count": 2637,
+      "source_rows": 2637,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "month",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Month"
+        },
+        {
+          "name": "nt_val",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "National Current Value"
+        },
+        {
+          "name": "nt_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "National Year-over-Year(%)"
+        },
+        {
+          "name": "nt_mom",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "National Month-over-Month(%)"
+        },
+        {
+          "name": "nt_accu",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "National Cumulative Value"
+        },
+        {
+          "name": "town_val",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Urban Current Value"
+        },
+        {
+          "name": "town_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Urban Year-over-Year(%)"
+        },
+        {
+          "name": "town_mom",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Urban Month-over-Month(%)"
+        },
+        {
+          "name": "town_accu",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Urban Cumulative Value"
+        },
+        {
+          "name": "cnt_val",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Rural Current Value"
+        },
+        {
+          "name": "cnt_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Rural Year-over-Year(%)"
+        },
+        {
+          "name": "cnt_mom",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Rural Month-over-Month(%)"
+        },
+        {
+          "name": "cnt_accu",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Rural Cumulative Value"
+        }
+      ]
+    },
+    {
+      "name": "cd80_cn_lpr",
+      "title": "LPR (Loan Prime Rate).",
+      "row_count": 102295,
+      "source_rows": 102295,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Date"
+        },
+        {
+          "name": "1y",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "1-Year Loan Rate"
+        },
+        {
+          "name": "5y",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "5-Year Loan Rate"
+        }
+      ]
+    },
+    {
+      "name": "cd80_daily",
+      "title": "Daily stock market data, including security codes, trading dates, open, high, low and close prices, price changes, trading volumes, and trading amounts.",
+      "row_count": 2978581,
+      "source_rows": 2978581,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Code"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "open",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Open Price"
+        },
+        {
+          "name": "high",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "High Price"
+        },
+        {
+          "name": "low",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Low Price"
+        },
+        {
+          "name": "close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Close Price"
+        },
+        {
+          "name": "pre_close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Previous Close Price"
+        },
+        {
+          "name": "change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price Change"
+        },
+        {
+          "name": "pct_chg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Percentage Change (%)"
+        },
+        {
+          "name": "vol",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Trading Volume in Lots"
+        },
+        {
+          "name": "amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Trading Amount in CNY Thousands"
+        }
+      ]
+    },
+    {
+      "name": "cd80_daily_basic",
+      "title": "Daily fundamental and market indicators for all stocks, including valuation ratios, turnover rates, dividend yields, share capital, and market capitalization.",
+      "row_count": 2978581,
+      "source_rows": 2978581,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Close Price"
+        },
+        {
+          "name": "turnover_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Turnover Rate"
+        },
+        {
+          "name": "turnover_rate_f",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Free-float Turnover Rate"
+        },
+        {
+          "name": "volume_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Volume Ratio"
+        },
+        {
+          "name": "pe",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price-Earnings Ratio"
+        },
+        {
+          "name": "pe_ttm",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "TTM Price-Earnings Ratio"
+        },
+        {
+          "name": "pb",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price-to-Book Ratio"
+        },
+        {
+          "name": "ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price-to-Sales Ratio"
+        },
+        {
+          "name": "ps_ttm",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "TTM Price-to-Sales Ratio"
+        },
+        {
+          "name": "dv_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Dividend Yield"
+        },
+        {
+          "name": "dv_ttm",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "TTM Dividend Yield"
+        },
+        {
+          "name": "total_share",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Shares"
+        },
+        {
+          "name": "float_share",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Float Shares"
+        },
+        {
+          "name": "free_share",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Free Float Shares"
+        },
+        {
+          "name": "total_mv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Market Value"
+        },
+        {
+          "name": "circ_mv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Circulating Market Value"
+        }
+      ]
+    },
+    {
+      "name": "cd80_etf_basic",
+      "title": "ETF basic information",
+      "row_count": 5502,
+      "source_rows": 5502,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "csname",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "ETF Chinese Short Name"
+        },
+        {
+          "name": "extname",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "ETF Extended Short Name"
+        },
+        {
+          "name": "cname",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Fund Chinese Full Name"
+        },
+        {
+          "name": "index_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "ETF Benchmark Index Code"
+        },
+        {
+          "name": "index_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "ETF Benchmark Index Chinese Full Name"
+        },
+        {
+          "name": "setup_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Setup Date"
+        },
+        {
+          "name": "list_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Listing Date"
+        },
+        {
+          "name": "list_status",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Listing Status"
+        },
+        {
+          "name": "exchange",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Exchange"
+        },
+        {
+          "name": "mgr_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Fund Manager Short Name"
+        },
+        {
+          "name": "custod_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Fund Custodian Name"
+        },
+        {
+          "name": "mgt_fee",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Management Fee"
+        },
+        {
+          "name": "etf_type",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Fund Investment Channel Type"
+        }
+      ]
+    },
+    {
+      "name": "cd80_etf_fund_daily",
+      "title": "Daily trading data of ETFs after market close.",
+      "row_count": 918353,
+      "source_rows": 918353,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "pre_close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Previous Close Price"
+        },
+        {
+          "name": "open",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Open Price"
+        },
+        {
+          "name": "high",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "High Price"
+        },
+        {
+          "name": "low",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Low Price"
+        },
+        {
+          "name": "close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Close Price"
+        },
+        {
+          "name": "change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Change"
+        },
+        {
+          "name": "pct_chg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Percentage Change"
+        },
+        {
+          "name": "vol",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Volume"
+        },
+        {
+          "name": "amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Amount"
+        }
+      ]
+    },
+    {
+      "name": "cd80_etf_index",
+      "title": "ETF benchmark index list information.",
+      "row_count": 160541,
+      "source_rows": 160541,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "indx_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Index Full Name"
+        },
+        {
+          "name": "indx_csname",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Index Short Name"
+        },
+        {
+          "name": "pub_party_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Index Publisher"
+        },
+        {
+          "name": "pub_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Index Publication Date"
+        },
+        {
+          "name": "base_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Index Base Date"
+        },
+        {
+          "name": "bp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Index Base Point"
+        },
+        {
+          "name": "adj_circle",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Index Constituent Adjustment Cycle"
+        }
+      ]
+    },
+    {
+      "name": "cd80_etf_share_size",
+      "title": "Daily share and scale data of Shanghai and Shenzhen ETFs, which can reflect changes in scale and shares, help track ETF fund flows, and provide daily net asset value and closing price.",
+      "row_count": 675706,
+      "source_rows": 675706,
+      "fields": [
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "etf_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "ETF Name"
+        },
+        {
+          "name": "total_share",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Shares"
+        },
+        {
+          "name": "total_size",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Size"
+        },
+        {
+          "name": "exchange",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Exchange"
+        },
+        {
+          "name": "nav",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Net Asset Value"
+        },
+        {
+          "name": "close",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Close Price"
+        }
+      ]
+    },
+    {
+      "name": "cd80_factor_list",
+      "title": "Quantitative investment factor catalog data, including factor names, applicable asset classes, factor categories, factor definitions, and mathematical calculation logic.",
+      "row_count": 1210908,
+      "source_rows": 1210908,
+      "fields": [
+        {
+          "name": "factor_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Factor Name"
+        },
+        {
+          "name": "asset_class",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Asset Class"
+        },
+        {
+          "name": "factor_category",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Factor Category"
+        },
+        {
+          "name": "factor_description",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Factor Description and Calculation Logic"
+        }
+      ]
+    },
+    {
+      "name": "cd80_fund_basic",
+      "title": "Public fund data list.",
+      "row_count": 18171,
+      "source_rows": 18171,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Name"
+        },
+        {
+          "name": "management",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Management"
+        },
+        {
+          "name": "custodian",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Custodian"
+        },
+        {
+          "name": "fund_type",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Fund Type"
+        },
+        {
+          "name": "found_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Found Date"
+        },
+        {
+          "name": "due_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Due Date"
+        },
+        {
+          "name": "list_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Listing Date"
+        },
+        {
+          "name": "issue_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Issue Date"
+        },
+        {
+          "name": "delist_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Delisting Date"
+        },
+        {
+          "name": "issue_amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Issue Amount"
+        },
+        {
+          "name": "m_fee",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Management Fee"
+        },
+        {
+          "name": "c_fee",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Custodian Fee"
+        },
+        {
+          "name": "duration_year",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Duration Year"
+        },
+        {
+          "name": "p_value",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Par Value"
+        },
+        {
+          "name": "min_amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Minimum Amount"
+        },
+        {
+          "name": "exp_return",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Expected Return"
+        },
+        {
+          "name": "benchmark",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Benchmark"
+        },
+        {
+          "name": "status",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Status"
+        },
+        {
+          "name": "invest_type",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Investment Type"
+        },
+        {
+          "name": "type",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Type"
+        },
+        {
+          "name": "trustee",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Trustee"
+        },
+        {
+          "name": "purc_startdate",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Purchase Start Date"
+        },
+        {
+          "name": "redm_startdate",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Redemption Start Date"
+        },
+        {
+          "name": "market",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Market"
+        }
+      ]
+    },
+    {
+      "name": "cd80_fund_nav",
+      "title": "Public fund net asset value (NAV) data.",
+      "row_count": 987367,
+      "source_rows": 987367,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "nav_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Net Asset Value Date"
+        },
+        {
+          "name": "unit_nav",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Unit Net Asset Value"
+        },
+        {
+          "name": "accum_nav",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Accumulated Net Asset Value"
+        },
+        {
+          "name": "accum_div",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Accumulated Dividend"
+        },
+        {
+          "name": "net_asset",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Asset"
+        },
+        {
+          "name": "adj_nav",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Adjusted Net Asset Value"
+        },
+        {
+          "name": "update_flag",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Indicates whether the record is an original entry or an updated version.0: Original record;1: Updated record"
+        },
+        {
+          "name": "total_netasset",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Total Net Asset"
+        }
+      ]
+    },
+    {
+      "name": "cd80_fund_portfolio",
+      "title": "Public fund equity portfolio holdings data, including fund codes, announcement dates, reporting-period end dates, held securities, holding market values and quantities, and relevant holding ratios.",
+      "row_count": 371711,
+      "source_rows": 371711,
+      "fields": [
+        {
+          "name": "fund_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Fund Code"
+        },
+        {
+          "name": "announcement_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "report_end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Reporting Period End Date"
+        },
+        {
+          "name": "security_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Code"
+        },
+        {
+          "name": "holding_market_value_cny",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Holding Market Value in CNY"
+        },
+        {
+          "name": "holding_quantity_shares",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Holding Quantity in Shares"
+        },
+        {
+          "name": "share_of_fund_equity_market_value_percent",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Share of Fund Equity Market Value (%)"
+        },
+        {
+          "name": "share_of_security_float_percent",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Share of Security Float (%)"
+        }
+      ]
+    },
+    {
+      "name": "cd80_index_dd",
+      "title": "Daily market data for various indices.",
+      "row_count": 574655,
+      "source_rows": 574655,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Close"
+        },
+        {
+          "name": "open",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Open"
+        },
+        {
+          "name": "high",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "High"
+        },
+        {
+          "name": "low",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Low"
+        },
+        {
+          "name": "pre_close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Previous Close"
+        },
+        {
+          "name": "change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Change"
+        },
+        {
+          "name": "pct_chg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Percentage Change"
+        },
+        {
+          "name": "vol",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Volume"
+        },
+        {
+          "name": "amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Amount"
+        }
+      ]
+    },
+    {
+      "name": "cd80_ipo",
+      "title": "IPO issuance and listing data, including security short names, prospectus announcements, online roadshows, initial inquiries, online subscriptions, lottery results, listing dates, and issue prices.",
+      "row_count": 6754,
+      "source_rows": 6754,
+      "fields": [
+        {
+          "name": "SESNAME",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Security Short Name"
+        },
+        {
+          "name": "ISSPUBDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Prospectus Announcement Date"
+        },
+        {
+          "name": "ONLRDSHOWBEGDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Online Roadshow Start Date"
+        },
+        {
+          "name": "INITENQUBEGDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Initial Inquiry Start Date"
+        },
+        {
+          "name": "ONLSUBBEGDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Online Subscription Start Date"
+        },
+        {
+          "name": "ONLSUBCODE",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Online Subscription Code"
+        },
+        {
+          "name": "ONLSUBSNAME",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Online Subscription Short Name"
+        },
+        {
+          "name": "ONLLOTWINRTPUBDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Online Offering Lot Winning Rate Announcement Date"
+        },
+        {
+          "name": "ONLLOTWINERSTPUBDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Online Lottery Results Announcement Date"
+        },
+        {
+          "name": "LISTDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Listing Date"
+        },
+        {
+          "name": "PS_ISS_PRC",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Issue Price per Share"
+        },
+        {
+          "name": "DATA_DOWNLOAD_TIME",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Data Download Time"
+        }
+      ]
+    },
+    {
+      "name": "cd80_lhb_summary",
+      "title": "Dragon and Tiger List business-unit trading details, including disclosed securities, trading units, buy and sell amounts, turnover ratios, and ranking directions.",
+      "row_count": 243570,
+      "source_rows": 243570,
+      "fields": [
+        {
+          "name": "ID",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "BIZUNITTRDINFOID",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Business Unit Trading Information ID"
+        },
+        {
+          "name": "TRADEDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "SYMBOL",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Code"
+        },
+        {
+          "name": "SECODE",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Internal ID"
+        },
+        {
+          "name": "CHGTYPE",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Trading Anomaly Type Code"
+        },
+        {
+          "name": "BIZSUNITCODE",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Business Unit Code"
+        },
+        {
+          "name": "BIZSUNITNAME",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Business Unit Name"
+        },
+        {
+          "name": "AMOUNT",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Aggregate Trading Amount"
+        },
+        {
+          "name": "BUYVOL",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Buy Volume"
+        },
+        {
+          "name": "BUYAMT",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Buy Amount"
+        },
+        {
+          "name": "SALEVOL",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Sell Volume"
+        },
+        {
+          "name": "SALEAMT",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Sell Amount"
+        },
+        {
+          "name": "MEMO",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Remarks"
+        },
+        {
+          "name": "ISVALID",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Validity Flag"
+        },
+        {
+          "name": "TMSTAMP",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "System Timestamp"
+        },
+        {
+          "name": "ENTRYDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Entry Date"
+        },
+        {
+          "name": "ENTRYTIME",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Entry Time"
+        },
+        {
+          "name": "TRANSDIR",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Ranking Direction Code"
+        },
+        {
+          "name": "EXCHANGE",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Exchange Code"
+        },
+        {
+          "name": "SETYPE",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Security Type Code"
+        },
+        {
+          "name": "STTYPE",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Stock Type Code"
+        },
+        {
+          "name": "BUYAMTRT",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Buy Amount Ratio"
+        },
+        {
+          "name": "SALEAMTRT",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Sell Amount Ratio"
+        },
+        {
+          "name": "TOTAMTRT",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Aggregate Trading Amount Ratio"
+        },
+        {
+          "name": "ISTOTCOUNT",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Total-Inclusion Flag"
+        },
+        {
+          "name": "SMEBTSTOCKID",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Listed-Security Record ID"
+        },
+        {
+          "name": "DATA_DOWNLOAD_TIME",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Data Download Time"
+        }
+      ]
+    },
+    {
+      "name": "cd80_limit_down",
+      "title": "Limit-down stock market and valuation details, including trade dates, security identifiers, static and dynamic P/E ratios, P/B ratios, trading amounts and volumes, total market capitalization, daily price ranges, price changes, and limit-down prices.",
+      "row_count": 72,
+      "source_rows": 72,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Code"
+        },
+        {
+          "name": "name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Security Short Name"
+        },
+        {
+          "name": "spe",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Static Price-to-Earnings Ratio"
+        },
+        {
+          "name": "pbr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price-to-Book Ratio"
+        },
+        {
+          "name": "pe",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Dynamic Price-to-Earnings Ratio"
+        },
+        {
+          "name": "amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Trading Amount"
+        },
+        {
+          "name": "open_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Opening Price"
+        },
+        {
+          "name": "total_value",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Market Capitalization"
+        },
+        {
+          "name": "change_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price Change Rate"
+        },
+        {
+          "name": "last_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Latest Price"
+        },
+        {
+          "name": "change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price Change Amount"
+        },
+        {
+          "name": "volume",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Trading Volume"
+        },
+        {
+          "name": "pre_close_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Previous Closing Price"
+        },
+        {
+          "name": "high_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "High Price"
+        },
+        {
+          "name": "low_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Low Price"
+        },
+        {
+          "name": "limit_price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Limit-Down Price"
+        },
+        {
+          "name": "create_time",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Record Creation Time"
+        },
+        {
+          "name": "update_time",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Record Update Time"
+        }
+      ]
+    },
+    {
+      "name": "cd80_limit_surge",
+      "title": "Market snapshots for limit-up and rapidly rising stocks, including security identifiers, prices, trading amounts, circulating market capitalization, price limits, price changes, limit-up status, and limit-up time.",
+      "row_count": 13408,
+      "source_rows": 13408,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Code"
+        },
+        {
+          "name": "name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Security Short Name"
+        },
+        {
+          "name": "timestamp",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Market Data Timestamp in Milliseconds"
+        },
+        {
+          "name": "localtime",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Local Receipt Timestamp in Milliseconds"
+        },
+        {
+          "name": "seq_no",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Sequence Number"
+        },
+        {
+          "name": "status",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Status Flag"
+        },
+        {
+          "name": "open",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Opening Price"
+        },
+        {
+          "name": "high",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "High Price"
+        },
+        {
+          "name": "low",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Low Price"
+        },
+        {
+          "name": "price",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Latest Price"
+        },
+        {
+          "name": "close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Closing Price"
+        },
+        {
+          "name": "amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Trading Amount"
+        },
+        {
+          "name": "circulating_mv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Circulating Market Capitalization"
+        },
+        {
+          "name": "limit_up",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Upper Price Limit"
+        },
+        {
+          "name": "limit_down",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Lower Price Limit"
+        },
+        {
+          "name": "spread",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price Change Rate"
+        },
+        {
+          "name": "price_spread",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Price Change Amount"
+        },
+        {
+          "name": "last_close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Previous Closing Price"
+        },
+        {
+          "name": "create_time",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Record Creation Time"
+        },
+        {
+          "name": "update_time",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Record Update Time"
+        },
+        {
+          "name": "is_limit_up",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Limit-Up Flag"
+        },
+        {
+          "name": "limit_time",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Limit-Up Timestamp in Milliseconds"
+        }
+      ]
+    },
+    {
+      "name": "cd80_margin_data",
+      "title": "Margin trading and securities lending details, including daily financing balances, financing purchases and repayments, securities lending balances and quantities for each security.",
+      "row_count": 1311539,
+      "source_rows": 1311539,
+      "fields": [
+        {
+          "name": "ID",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "TRADEDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "SECODE",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Internal Code"
+        },
+        {
+          "name": "SYMBOL",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Security Code"
+        },
+        {
+          "name": "EXCHANGE",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Exchange Code"
+        },
+        {
+          "name": "FINBALANCE",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Margin Financing Balance"
+        },
+        {
+          "name": "FINBUYAMT",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Margin Purchase Amount"
+        },
+        {
+          "name": "FINREPAYAMT",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Financing Repayment Amount"
+        },
+        {
+          "name": "MRGGBAL",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Securities Lending Balance"
+        },
+        {
+          "name": "MRGNRESQTY",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Securities Lending Outstanding Quantity"
+        },
+        {
+          "name": "MRGNSELLAMT",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Securities Lending Sell Quantity"
+        },
+        {
+          "name": "MRGNREPAYAMT",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Securities Lending Repayment Quantity"
+        },
+        {
+          "name": "FINMRGHBAL",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Total Margin Financing and Securities Lending Balance"
+        },
+        {
+          "name": "ISVALID",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Validity Flag"
+        },
+        {
+          "name": "TMSTAMP",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Timestamp"
+        },
+        {
+          "name": "ENTRYDATE",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Entry Date"
+        },
+        {
+          "name": "ENTRYTIME",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Entry Time"
+        },
+        {
+          "name": "DATA_DOWNLOAD_TIME",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Data Download Time"
+        }
+      ]
+    },
+    {
+      "name": "cd80_spots_sh_gold_dd",
+      "title": "Shanghai Gold Exchange spot contract daily candlestick market data.",
+      "row_count": 61439,
+      "source_rows": 61439,
+      "fields": [
+        {
+          "name": "ID",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "close",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Close Price"
+        },
+        {
+          "name": "open",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Open Price"
+        },
+        {
+          "name": "high",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "High Price"
+        },
+        {
+          "name": "low",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Low Price"
+        },
+        {
+          "name": "price_avg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Weighted Average Price"
+        },
+        {
+          "name": "change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Change"
+        },
+        {
+          "name": "pct_change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Percentage Change"
+        },
+        {
+          "name": "vol",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Volume"
+        },
+        {
+          "name": "amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Amount"
+        },
+        {
+          "name": "oi",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Open Interest"
+        },
+        {
+          "name": "settle_vol",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Settlement Volume"
+        },
+        {
+          "name": "settle_dire",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Settlement Direction"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_basic",
+      "title": "Basic information data, including stock code, name, listing date, delisting date, etc.",
+      "row_count": 5543,
+      "source_rows": 5543,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "symbol",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Stock Code"
+        },
+        {
+          "name": "name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Name"
+        },
+        {
+          "name": "area",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Area"
+        },
+        {
+          "name": "industry",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Industry"
+        },
+        {
+          "name": "list_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Listing Date"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_basic_calendar",
+      "title": "Trading calendar data for major exchanges",
+      "row_count": 25594,
+      "source_rows": 25594,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "exchange",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Exchange"
+        },
+        {
+          "name": "cal_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Calendar Date"
+        },
+        {
+          "name": "is_open",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Is Open"
+        },
+        {
+          "name": "pretrade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Previous Trading Date"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_basic_managers",
+      "title": "Management of listed companies.",
+      "row_count": 4000,
+      "source_rows": 4000,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Name"
+        },
+        {
+          "name": "gender",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Gender"
+        },
+        {
+          "name": "lev",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Position Category"
+        },
+        {
+          "name": "title",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Position"
+        },
+        {
+          "name": "edu",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Education"
+        },
+        {
+          "name": "national",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Nationality"
+        },
+        {
+          "name": "birthday",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Birthday"
+        },
+        {
+          "name": "begin_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Appointment Date"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Departure Date"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_fin_balancesheet",
+      "title": "Balance sheet of listed companies.",
+      "row_count": 8,
+      "source_rows": 8,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "f_ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Actual Announcement Date"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Reporting Period"
+        },
+        {
+          "name": "report_type",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Report Type"
+        },
+        {
+          "name": "comp_type",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Company Type"
+        },
+        {
+          "name": "end_type",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Report Period Type"
+        },
+        {
+          "name": "total_share",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Total Shares at Period End"
+        },
+        {
+          "name": "cap_rese",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Capital Reserve"
+        },
+        {
+          "name": "undistr_porfit",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Undistributed Profit"
+        },
+        {
+          "name": "surplus_rese",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Surplus Reserve"
+        },
+        {
+          "name": "special_rese",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Special Reserve"
+        },
+        {
+          "name": "money_cap",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Monetary Funds"
+        },
+        {
+          "name": "trad_asset",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Trading Financial Assets"
+        },
+        {
+          "name": "notes_receiv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Notes Receivable"
+        },
+        {
+          "name": "accounts_receiv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Accounts Receivable"
+        },
+        {
+          "name": "oth_receiv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Receivables"
+        },
+        {
+          "name": "prepayment",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Prepayments"
+        },
+        {
+          "name": "div_receiv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Dividends Receivable"
+        },
+        {
+          "name": "int_receiv",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Interest Receivable"
+        },
+        {
+          "name": "inventories",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Inventories"
+        },
+        {
+          "name": "amor_exp",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Amortization Expenses"
+        },
+        {
+          "name": "nca_within_1y",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Non-current Assets Due Within 1 Year"
+        },
+        {
+          "name": "sett_rsrv",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Settlement Reserve"
+        },
+        {
+          "name": "loanto_oth_bank_fi",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Loans to Other Banks and Financial Institutions"
+        },
+        {
+          "name": "premium_receiv",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Premiums Receivable"
+        },
+        {
+          "name": "reinsur_receiv",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Reinsurance Receivables"
+        },
+        {
+          "name": "reinsur_res_receiv",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Reinsurance Contract Reserves Receivable"
+        },
+        {
+          "name": "pur_resale_fa",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Financial Assets Purchased under Resale Agreements"
+        },
+        {
+          "name": "oth_cur_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Current Assets"
+        },
+        {
+          "name": "total_cur_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Current Assets"
+        },
+        {
+          "name": "fa_avail_for_sale",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Financial Assets Available for Sale"
+        },
+        {
+          "name": "htm_invest",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Held-to-Maturity Investments"
+        },
+        {
+          "name": "lt_eqt_invest",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Long-term Equity Investments"
+        },
+        {
+          "name": "invest_real_estate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Investment Real Estate"
+        },
+        {
+          "name": "time_deposits",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Time Deposits"
+        },
+        {
+          "name": "oth_assets",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Other Assets"
+        },
+        {
+          "name": "lt_rec",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Long-term Receivables"
+        },
+        {
+          "name": "fix_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Fixed Assets"
+        },
+        {
+          "name": "cip",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Construction in Progress"
+        },
+        {
+          "name": "const_materials",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Construction Materials"
+        },
+        {
+          "name": "fixed_assets_disp",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Disposal of Fixed Assets"
+        },
+        {
+          "name": "produc_bio_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Productive Biological Assets"
+        },
+        {
+          "name": "oil_and_gas_assets",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Oil and Gas Assets"
+        },
+        {
+          "name": "intan_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Intangible Assets"
+        },
+        {
+          "name": "r_and_d",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "R&D Expenditure"
+        },
+        {
+          "name": "goodwill",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Goodwill"
+        },
+        {
+          "name": "lt_amor_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Long-term Amortization Expenses"
+        },
+        {
+          "name": "defer_tax_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Deferred Tax Assets"
+        },
+        {
+          "name": "decr_in_disbur",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Loans and Advances to Customers"
+        },
+        {
+          "name": "oth_nca",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Non-current Assets"
+        },
+        {
+          "name": "total_nca",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Non-current Assets"
+        },
+        {
+          "name": "cash_reser_cb",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Cash and Deposits with Central Bank"
+        },
+        {
+          "name": "depos_in_oth_bfi",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Deposits with Banks and Other Financial Institutions"
+        },
+        {
+          "name": "prec_metals",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Precious Metals"
+        },
+        {
+          "name": "deriv_assets",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Derivative Financial Assets"
+        },
+        {
+          "name": "rr_reins_une_prem",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Reinsurance Unexpired Premium Reserve Receivable"
+        },
+        {
+          "name": "rr_reins_outstd_cla",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Reinsurance Outstanding Claims Reserve Receivable"
+        },
+        {
+          "name": "rr_reins_lins_liab",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Reinsurance Life Insurance Reserve Receivable"
+        },
+        {
+          "name": "rr_reins_lthins_liab",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Reinsurance Long-term Health Insurance Reserve Receivable"
+        },
+        {
+          "name": "refund_depos",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Refundable Deposits"
+        },
+        {
+          "name": "ph_pledge_loans",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Policyholder Pledge Loans"
+        },
+        {
+          "name": "refund_cap_depos",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Refundable Capital Deposits"
+        },
+        {
+          "name": "indep_acct_assets",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Independent Account Assets"
+        },
+        {
+          "name": "client_depos",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Including: Client Fund Deposits"
+        },
+        {
+          "name": "client_prov",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Including: Client Provisions"
+        },
+        {
+          "name": "transac_seat_fee",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Including: Trading Seat Fees"
+        },
+        {
+          "name": "invest_as_receiv",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Investments Receivable"
+        },
+        {
+          "name": "total_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Assets"
+        },
+        {
+          "name": "lt_borr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Long-term Borrowings"
+        },
+        {
+          "name": "st_borr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Short-term Borrowings"
+        },
+        {
+          "name": "cb_borr",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Borrowings from Central Bank"
+        },
+        {
+          "name": "depos_ib_deposits",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Deposits from Banks and Other Financial Institutions"
+        },
+        {
+          "name": "loan_oth_bank",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Interbank Borrowings"
+        },
+        {
+          "name": "trading_fl",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Trading Financial Liabilities"
+        },
+        {
+          "name": "notes_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Notes Payable"
+        },
+        {
+          "name": "acct_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Accounts Payable"
+        },
+        {
+          "name": "adv_receipts",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Advances from Customers"
+        },
+        {
+          "name": "sold_for_repur_fa",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Financial Assets Sold under Repurchase Agreements"
+        },
+        {
+          "name": "comm_payable",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Commissions Payable"
+        },
+        {
+          "name": "payroll_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Employee Benefits Payable"
+        },
+        {
+          "name": "taxes_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Taxes Payable"
+        },
+        {
+          "name": "int_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Interest Payable"
+        },
+        {
+          "name": "div_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Dividends Payable"
+        },
+        {
+          "name": "oth_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Payables"
+        },
+        {
+          "name": "acc_exp",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Accrued Expenses"
+        },
+        {
+          "name": "deferred_inc",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Deferred Income"
+        },
+        {
+          "name": "st_bonds_payable",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Short-term Bonds Payable"
+        },
+        {
+          "name": "payable_to_reinsurer",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Payable to Reinsurers"
+        },
+        {
+          "name": "rsrv_insur_cont",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Insurance Contract Reserves"
+        },
+        {
+          "name": "acting_trading_sec",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Securities Trading Agency Payables"
+        },
+        {
+          "name": "acting_uw_sec",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Securities Underwriting Agency Payables"
+        },
+        {
+          "name": "non_cur_liab_due_1y",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Non-current Liabilities Due Within 1 Year"
+        },
+        {
+          "name": "oth_cur_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Current Liabilities"
+        },
+        {
+          "name": "total_cur_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Current Liabilities"
+        },
+        {
+          "name": "bond_payable",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Bonds Payable"
+        },
+        {
+          "name": "lt_payable",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Long-term Payables"
+        },
+        {
+          "name": "specific_payables",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Specific Payables"
+        },
+        {
+          "name": "estimated_liab",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Estimated Liabilities"
+        },
+        {
+          "name": "defer_tax_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Deferred Tax Liabilities"
+        },
+        {
+          "name": "defer_inc_non_cur_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Deferred Income - Non-current Liabilities"
+        },
+        {
+          "name": "oth_ncl",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Other Non-current Liabilities"
+        },
+        {
+          "name": "total_ncl",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Non-current Liabilities"
+        },
+        {
+          "name": "depos_oth_bfi",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Deposits from Banks and Other Financial Institutions"
+        },
+        {
+          "name": "deriv_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Derivative Financial Liabilities"
+        },
+        {
+          "name": "depos",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Deposits"
+        },
+        {
+          "name": "agency_bus_liab",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Agency Business Liabilities"
+        },
+        {
+          "name": "oth_liab",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Other Liabilities"
+        },
+        {
+          "name": "prem_receiv_adva",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Premiums Received in Advance"
+        },
+        {
+          "name": "depos_received",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Deposits Received"
+        },
+        {
+          "name": "ph_invest",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Policyholder Deposits and Investment Funds"
+        },
+        {
+          "name": "reser_une_prem",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Unexpired Liability Reserve"
+        },
+        {
+          "name": "reser_outstd_claims",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Outstanding Claims Reserve"
+        },
+        {
+          "name": "reser_lins_liab",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Life Insurance Liability Reserve"
+        },
+        {
+          "name": "reser_lthins_liab",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Long-term Health Insurance Liability Reserve"
+        },
+        {
+          "name": "indept_acc_liab",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Independent Account Liabilities"
+        },
+        {
+          "name": "pledge_borr",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Including: Pledge Borrowings"
+        },
+        {
+          "name": "indem_payable",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Indemnity Payable"
+        },
+        {
+          "name": "policy_div_payable",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Policyholder Dividend Payable"
+        },
+        {
+          "name": "total_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Liabilities"
+        },
+        {
+          "name": "treasury_share",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Less: Treasury Shares"
+        },
+        {
+          "name": "ordin_risk_reser",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "General Risk Reserve"
+        },
+        {
+          "name": "forex_differ",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Foreign Currency Translation Difference"
+        },
+        {
+          "name": "invest_loss_unconf",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Unconfirmed Investment Loss"
+        },
+        {
+          "name": "minority_int",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Minority Interests"
+        },
+        {
+          "name": "total_hldr_eqy_exc_min_int",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Shareholders' Equity (Excluding Minority Interests)"
+        },
+        {
+          "name": "total_hldr_eqy_inc_min_int",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Shareholders' Equity (Including Minority Interests)"
+        },
+        {
+          "name": "total_liab_hldr_eqy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Liabilities and Shareholders' Equity"
+        },
+        {
+          "name": "lt_payroll_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Long-term Employee Benefits Payable"
+        },
+        {
+          "name": "oth_comp_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Comprehensive Income"
+        },
+        {
+          "name": "oth_eqt_tools",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Other Equity Instruments"
+        },
+        {
+          "name": "oth_eqt_tools_p_shr",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Other Equity Instruments (Preferred Shares)"
+        },
+        {
+          "name": "lending_funds",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Lending Funds"
+        },
+        {
+          "name": "acc_receivable",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Receivables"
+        },
+        {
+          "name": "st_fin_payable",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Short-term Financing Payable"
+        },
+        {
+          "name": "payables",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Payables"
+        },
+        {
+          "name": "hfs_assets",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Assets Held for Sale"
+        },
+        {
+          "name": "hfs_sales",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Liabilities Held for Sale"
+        },
+        {
+          "name": "cost_fin_assets",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Financial Assets Measured at Amortized Cost"
+        },
+        {
+          "name": "fair_value_fin_assets",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Financial Assets Measured at Fair Value through Other Comprehensive Income"
+        },
+        {
+          "name": "contract_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Contract Assets"
+        },
+        {
+          "name": "contract_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Contract Liabilities"
+        },
+        {
+          "name": "accounts_receiv_bill",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Notes and Accounts Receivable"
+        },
+        {
+          "name": "accounts_pay",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Accounts Payable"
+        },
+        {
+          "name": "oth_rcv_total",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Receivables (Total)"
+        },
+        {
+          "name": "fix_assets_total",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Fixed Assets"
+        },
+        {
+          "name": "cip_total",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Construction in Progress"
+        },
+        {
+          "name": "oth_pay_total",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Payables (Total)"
+        },
+        {
+          "name": "long_pay_total",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Long-term Payables (Total)"
+        },
+        {
+          "name": "debt_invest",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Debt Investments"
+        },
+        {
+          "name": "oth_debt_invest",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Other Debt Investments"
+        },
+        {
+          "name": "update_flag",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Update Flag"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_fin_cashflow",
+      "title": "Cash flow statement of listed companies.",
+      "row_count": 41837,
+      "source_rows": 41837,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "f_ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Actual Announcement Date"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Reporting Period"
+        },
+        {
+          "name": "comp_type",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Company Type"
+        },
+        {
+          "name": "report_type",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Report Type"
+        },
+        {
+          "name": "end_type",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Report Period Type"
+        },
+        {
+          "name": "net_profit",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit"
+        },
+        {
+          "name": "finan_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Financial Expenses"
+        },
+        {
+          "name": "c_fr_sale_sg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Received from Sales of Goods and Rendering of Services"
+        },
+        {
+          "name": "recp_tax_rends",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Tax Refunds Received"
+        },
+        {
+          "name": "n_depos_incr_fi",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Customer Deposits and Deposits from Banks and Other Financial Institutions"
+        },
+        {
+          "name": "n_incr_loans_cb",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Borrowings from Central Bank"
+        },
+        {
+          "name": "n_inc_borr_oth_fi",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Funds Borrowed from Other Financial Institutions"
+        },
+        {
+          "name": "prem_fr_orig_contr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Received from Original Insurance Contracts"
+        },
+        {
+          "name": "n_incr_insured_dep",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Policyholder Deposits"
+        },
+        {
+          "name": "n_reinsur_prem",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Received from Reinsurance Business"
+        },
+        {
+          "name": "n_incr_disp_tfa",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Disposal of Trading Financial Assets"
+        },
+        {
+          "name": "ifc_cash_incr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Cash from Interest and Commission Received"
+        },
+        {
+          "name": "n_incr_disp_faas",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Disposal of Financial Assets Available for Sale"
+        },
+        {
+          "name": "n_incr_loans_oth_bank",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Funds Borrowed from Other Banks"
+        },
+        {
+          "name": "n_cap_incr_repur",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Funds from Repurchase Business"
+        },
+        {
+          "name": "c_fr_oth_operate_a",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Cash Received Relating to Operating Activities"
+        },
+        {
+          "name": "c_inf_fr_operate_a",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Subtotal of Cash Inflows from Operating Activities"
+        },
+        {
+          "name": "c_paid_goods_s",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Goods and Services"
+        },
+        {
+          "name": "c_paid_to_for_empl",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid to and on Behalf of Employees"
+        },
+        {
+          "name": "c_paid_for_taxes",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Taxes Paid"
+        },
+        {
+          "name": "n_incr_clt_loan_adv",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Loans and Advances to Customers"
+        },
+        {
+          "name": "n_incr_dep_cbob",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Deposits with Central Bank and Banks"
+        },
+        {
+          "name": "c_pay_claims_orig_inco",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Original Insurance Contract Claims"
+        },
+        {
+          "name": "pay_handling_chrg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Handling Charges"
+        },
+        {
+          "name": "pay_comm_insur_plcy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Policyholder Dividends"
+        },
+        {
+          "name": "oth_cash_pay_oper_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Cash Paid Relating to Operating Activities"
+        },
+        {
+          "name": "st_cash_out_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Subtotal of Cash Outflows from Operating Activities"
+        },
+        {
+          "name": "n_cashflow_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Operating Activities"
+        },
+        {
+          "name": "oth_recp_ral_inv_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Cash Received Relating to Investing Activities"
+        },
+        {
+          "name": "c_disp_withdrwl_invest",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Received from Recovery of Investments"
+        },
+        {
+          "name": "c_recp_return_invest",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Received from Investment Income"
+        },
+        {
+          "name": "n_recp_disp_fiolta",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Received from Disposal of Fixed Assets, Intangible Assets and Other Long-term Assets"
+        },
+        {
+          "name": "n_recp_disp_sobu",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Received from Disposal of Subsidiaries and Other Business Units"
+        },
+        {
+          "name": "stot_inflows_inv_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Subtotal of Cash Inflows from Investing Activities"
+        },
+        {
+          "name": "c_pay_acq_const_fiolta",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Acquisition and Construction of Fixed Assets, Intangible Assets and Other Long-term Assets"
+        },
+        {
+          "name": "c_paid_invest",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Investments"
+        },
+        {
+          "name": "n_disp_subs_oth_biz",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Paid for Acquisition of Subsidiaries and Other Business Units"
+        },
+        {
+          "name": "oth_pay_ral_inv_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Cash Paid Relating to Investing Activities"
+        },
+        {
+          "name": "n_incr_pledge_loan",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Pledge Loans"
+        },
+        {
+          "name": "stot_out_inv_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Subtotal of Cash Outflows from Investing Activities"
+        },
+        {
+          "name": "n_cashflow_inv_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Investing Activities"
+        },
+        {
+          "name": "c_recp_borrow",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Received from Borrowings"
+        },
+        {
+          "name": "proc_issue_bonds",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Received from Issuance of Bonds"
+        },
+        {
+          "name": "oth_cash_recp_ral_fnc_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Cash Received Relating to Financing Activities"
+        },
+        {
+          "name": "stot_cash_in_fnc_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Subtotal of Cash Inflows from Financing Activities"
+        },
+        {
+          "name": "free_cashflow",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Free Cash Flow of Enterprise"
+        },
+        {
+          "name": "c_prepay_amt_borr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Repayment of Debt"
+        },
+        {
+          "name": "c_pay_dist_dpcp_int_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Paid for Distribution of Dividends, Profits or Payment of Interest"
+        },
+        {
+          "name": "incl_dvd_profit_paid_sc_ms",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Including: Dividends and Profits Paid by Subsidiaries to Minority Shareholders"
+        },
+        {
+          "name": "oth_cashpay_ral_fnc_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Cash Paid Relating to Financing Activities"
+        },
+        {
+          "name": "stot_cashout_fnc_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Subtotal of Cash Outflows from Financing Activities"
+        },
+        {
+          "name": "n_cash_flows_fnc_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Financing Activities"
+        },
+        {
+          "name": "eff_fx_flu_cash",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Effect of Exchange Rate Changes on Cash"
+        },
+        {
+          "name": "n_incr_cash_cash_equ",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Cash and Cash Equivalents"
+        },
+        {
+          "name": "c_cash_equ_beg_period",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash and Cash Equivalents at Beginning of Period"
+        },
+        {
+          "name": "c_cash_equ_end_period",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash and Cash Equivalents at End of Period"
+        },
+        {
+          "name": "c_recp_cap_contrib",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Received from Absorbing Investments"
+        },
+        {
+          "name": "incl_cash_rec_saims",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Including: Cash Received by Subsidiaries from Absorbing Minority Shareholder Investments"
+        },
+        {
+          "name": "uncon_invest_loss",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Unconfirmed Investment Loss"
+        },
+        {
+          "name": "prov_depr_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Add: Provision for Asset Impairment"
+        },
+        {
+          "name": "depr_fa_coga_dpba",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Depreciation of Fixed Assets, Depletion of Oil and Gas Assets, Depreciation of Productive Biological Assets"
+        },
+        {
+          "name": "amort_intang_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Amortization of Intangible Assets"
+        },
+        {
+          "name": "lt_amort_deferred_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Amortization of Long-term Deferred Expenses"
+        },
+        {
+          "name": "decr_deferred_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Decrease in Deferred Expenses"
+        },
+        {
+          "name": "incr_acc_exp",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Increase in Accrued Expenses"
+        },
+        {
+          "name": "loss_disp_fiolta",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Loss on Disposal of Fixed Assets, Intangible Assets and Other Long-term Assets"
+        },
+        {
+          "name": "loss_scr_fa",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Loss on Scrapping of Fixed Assets"
+        },
+        {
+          "name": "loss_fv_chg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Loss on Changes in Fair Value"
+        },
+        {
+          "name": "invest_loss",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Investment Loss"
+        },
+        {
+          "name": "decr_def_inc_tax_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Decrease in Deferred Tax Assets"
+        },
+        {
+          "name": "incr_def_inc_tax_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Increase in Deferred Tax Liabilities"
+        },
+        {
+          "name": "decr_inventories",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Decrease in Inventories"
+        },
+        {
+          "name": "decr_oper_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Decrease in Operating Receivables"
+        },
+        {
+          "name": "incr_oper_payable",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Increase in Operating Payables"
+        },
+        {
+          "name": "others",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Others"
+        },
+        {
+          "name": "im_net_cashflow_oper_act",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Operating Activities (Indirect Method)"
+        },
+        {
+          "name": "conv_debt_into_cap",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Conversion of Debt into Capital"
+        },
+        {
+          "name": "conv_copbonds_due_within_1y",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Convertible Corporate Bonds Due Within 1 Year"
+        },
+        {
+          "name": "fa_fnc_leases",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Fixed Assets under Finance Leases"
+        },
+        {
+          "name": "im_n_incr_cash_equ",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Cash and Cash Equivalents (Indirect Method)"
+        },
+        {
+          "name": "net_dism_capital_add",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Increase in Funds Lent"
+        },
+        {
+          "name": "net_cash_rece_sec",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Received from Securities Trading Agency Business"
+        },
+        {
+          "name": "credit_impa_loss",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Credit Impairment Loss"
+        },
+        {
+          "name": "use_right_asset_dep",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Depreciation of Right-of-use Assets"
+        },
+        {
+          "name": "oth_loss_asset",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Asset Impairment Loss"
+        },
+        {
+          "name": "end_bal_cash",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Closing Balance of Cash"
+        },
+        {
+          "name": "beg_bal_cash",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Opening Balance of Cash"
+        },
+        {
+          "name": "end_bal_cash_equ",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Add: Closing Balance of Cash Equivalents"
+        },
+        {
+          "name": "beg_bal_cash_equ",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Opening Balance of Cash Equivalents"
+        },
+        {
+          "name": "update_flag",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Update Flag (1 for Latest)"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_fin_dividend",
+      "title": "Dividend and bonus share data.",
+      "row_count": 55068,
+      "source_rows": 55068,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Dividend Year"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "div_proc",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Implementation Progress"
+        },
+        {
+          "name": "stk_div",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Stock Dividend per Share"
+        },
+        {
+          "name": "stk_bo_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Stock Bonus Ratio per Share"
+        },
+        {
+          "name": "stk_co_rate",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Capitalization Ratio per Share"
+        },
+        {
+          "name": "cash_div",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Dividend per Share (After Tax)"
+        },
+        {
+          "name": "cash_div_tax",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Dividend per Share (Before Tax)"
+        },
+        {
+          "name": "record_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Record Date"
+        },
+        {
+          "name": "ex_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Ex-Dividend Date"
+        },
+        {
+          "name": "pay_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Payment Date"
+        },
+        {
+          "name": "div_listdate",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Bonus Share Listing Date"
+        },
+        {
+          "name": "imp_ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Implementation Announcement Date"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_fin_income",
+      "title": "Financial income statement data of listed companies.",
+      "row_count": 31783,
+      "source_rows": 31783,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "f_ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Actual Announcement Date"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Reporting Period"
+        },
+        {
+          "name": "report_type",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Report Type"
+        },
+        {
+          "name": "comp_type",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Company Type"
+        },
+        {
+          "name": "end_type",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Report Period Type"
+        },
+        {
+          "name": "basic_eps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Basic Earnings Per Share"
+        },
+        {
+          "name": "diluted_eps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Diluted Earnings Per Share"
+        },
+        {
+          "name": "total_revenue",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Revenue"
+        },
+        {
+          "name": "revenue",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Revenue"
+        },
+        {
+          "name": "int_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Interest Income"
+        },
+        {
+          "name": "prem_earned",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Premium Earned"
+        },
+        {
+          "name": "comm_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Commission Income"
+        },
+        {
+          "name": "n_commis_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Commission Income"
+        },
+        {
+          "name": "n_oth_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Operating Net Income"
+        },
+        {
+          "name": "n_oth_b_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Add: Other Business Net Income"
+        },
+        {
+          "name": "prem_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Premium Income"
+        },
+        {
+          "name": "out_prem",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Reinsurance Premiums"
+        },
+        {
+          "name": "une_prem_reser",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Withdrawal of Unexpired Premium Reserve"
+        },
+        {
+          "name": "reins_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Including: Reinsurance Premium Income"
+        },
+        {
+          "name": "n_sec_tb_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Income from Securities Trading Agency Business"
+        },
+        {
+          "name": "n_sec_uw_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Income from Securities Underwriting Business"
+        },
+        {
+          "name": "n_asset_mg_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Income from Entrusted Customer Asset Management Business"
+        },
+        {
+          "name": "oth_b_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Business Income"
+        },
+        {
+          "name": "fv_value_chg_gain",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Add: Net Gain from Changes in Fair Value"
+        },
+        {
+          "name": "invest_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Add: Net Investment Income"
+        },
+        {
+          "name": "ass_invest_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Including: Investment Income from Associates and Joint Ventures"
+        },
+        {
+          "name": "forex_gain",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Add: Net Exchange Gain"
+        },
+        {
+          "name": "total_cogs",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Operating Cost"
+        },
+        {
+          "name": "oper_cost",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Operating Cost"
+        },
+        {
+          "name": "int_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Interest Expense"
+        },
+        {
+          "name": "comm_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Commission Expense"
+        },
+        {
+          "name": "biz_tax_surchg",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Business Tax and Surcharges"
+        },
+        {
+          "name": "sell_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Selling Expenses"
+        },
+        {
+          "name": "admin_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Administrative Expenses"
+        },
+        {
+          "name": "fin_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Financial Expenses"
+        },
+        {
+          "name": "assets_impair_loss",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Asset Impairment Loss"
+        },
+        {
+          "name": "prem_refund",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Premium Refund"
+        },
+        {
+          "name": "compens_payout",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Compensation Payout"
+        },
+        {
+          "name": "reser_insur_liab",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Withdrawal of Insurance Liability Reserve"
+        },
+        {
+          "name": "div_payt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Policyholder Dividend Payout"
+        },
+        {
+          "name": "reins_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Reinsurance Expense"
+        },
+        {
+          "name": "oper_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Expenditure"
+        },
+        {
+          "name": "compens_payout_refu",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Refund of Compensation Payout"
+        },
+        {
+          "name": "insur_reser_refu",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Refund of Insurance Liability Reserve"
+        },
+        {
+          "name": "reins_cost_refund",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Refund of Reinsurance Cost"
+        },
+        {
+          "name": "other_bus_cost",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Business Cost"
+        },
+        {
+          "name": "operate_profit",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Profit"
+        },
+        {
+          "name": "non_oper_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Add: Non-operating Income"
+        },
+        {
+          "name": "non_oper_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Less: Non-operating Expense"
+        },
+        {
+          "name": "nca_disploss",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Including: Less: Net Loss from Disposal of Non-current Assets"
+        },
+        {
+          "name": "total_profit",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Profit"
+        },
+        {
+          "name": "income_tax",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Income Tax Expense"
+        },
+        {
+          "name": "n_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Income (Including Minority Interests)"
+        },
+        {
+          "name": "n_income_attr_p",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Income (Excluding Minority Interests)"
+        },
+        {
+          "name": "minority_gain",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Minority Interests Gain"
+        },
+        {
+          "name": "oth_compr_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Other Comprehensive Income"
+        },
+        {
+          "name": "t_compr_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Comprehensive Income"
+        },
+        {
+          "name": "compr_inc_attr_p",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Comprehensive Income Attributable to Parent Company"
+        },
+        {
+          "name": "compr_inc_attr_m_s",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Comprehensive Income Attributable to Minority Shareholders"
+        },
+        {
+          "name": "ebit",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Earnings Before Interest and Taxes"
+        },
+        {
+          "name": "ebitda",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Earnings Before Interest, Taxes, Depreciation and Amortization"
+        },
+        {
+          "name": "insurance_exp",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Insurance Business Expenditure"
+        },
+        {
+          "name": "undist_profit",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Undistributed Profit at Beginning of Year"
+        },
+        {
+          "name": "distable_profit",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Distributable Profit"
+        },
+        {
+          "name": "rd_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "R&D Expenses"
+        },
+        {
+          "name": "fin_exp_int_exp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Financial Expenses: Interest Expense"
+        },
+        {
+          "name": "fin_exp_int_inc",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Financial Expenses: Interest Income"
+        },
+        {
+          "name": "transfer_surplus_rese",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Transfer to Surplus Reserve"
+        },
+        {
+          "name": "transfer_housing_imprest",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Transfer to Housing Revolving Fund"
+        },
+        {
+          "name": "transfer_oth",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Other Transfers"
+        },
+        {
+          "name": "adj_lossgain",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Adjustment of Prior Year Profit and Loss"
+        },
+        {
+          "name": "withdra_legal_surplus",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Withdrawal of Legal Surplus Reserve"
+        },
+        {
+          "name": "withdra_legal_pubfund",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Withdrawal of Legal Public Welfare Fund"
+        },
+        {
+          "name": "withdra_biz_devfund",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Withdrawal of Enterprise Development Fund"
+        },
+        {
+          "name": "withdra_rese_fund",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Withdrawal of Reserve Fund"
+        },
+        {
+          "name": "withdra_oth_ersu",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Withdrawal of Discretionary Surplus Reserve"
+        },
+        {
+          "name": "workers_welfare",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Employee Bonus and Welfare"
+        },
+        {
+          "name": "distr_profit_shrhder",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Profit Available for Distribution to Shareholders"
+        },
+        {
+          "name": "prfshare_payable_dvd",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Dividends Payable on Preferred Shares"
+        },
+        {
+          "name": "comshare_payable_dvd",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Dividends Payable on Common Shares"
+        },
+        {
+          "name": "capit_comstock_div",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Common Stock Dividends Converted to Share Capital"
+        },
+        {
+          "name": "continued_net_profit",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit from Continuing Operations"
+        },
+        {
+          "name": "update_flag",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Update Flag"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_fin_indicator",
+      "title": "Financial indicator data of listed companies.",
+      "row_count": 8643,
+      "source_rows": 8643,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Reporting Period"
+        },
+        {
+          "name": "eps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Basic Earnings Per Share"
+        },
+        {
+          "name": "dt_eps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Diluted Earnings Per Share"
+        },
+        {
+          "name": "total_revenue_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Revenue Per Share"
+        },
+        {
+          "name": "revenue_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Revenue Per Share"
+        },
+        {
+          "name": "capital_rese_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Capital Reserve Per Share"
+        },
+        {
+          "name": "surplus_rese_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Surplus Reserve Per Share"
+        },
+        {
+          "name": "undist_profit_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Undistributed Profit Per Share"
+        },
+        {
+          "name": "extra_item",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Extraordinary Items"
+        },
+        {
+          "name": "profit_dedt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit After Deducting Non-recurring Profit and Loss"
+        },
+        {
+          "name": "gross_margin",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Gross Margin"
+        },
+        {
+          "name": "current_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Current Ratio"
+        },
+        {
+          "name": "quick_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Quick Ratio"
+        },
+        {
+          "name": "cash_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cash Ratio"
+        },
+        {
+          "name": "ar_turn",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Accounts Receivable Turnover Ratio"
+        },
+        {
+          "name": "ca_turn",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Current Assets Turnover Ratio"
+        },
+        {
+          "name": "fa_turn",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Fixed Assets Turnover Ratio"
+        },
+        {
+          "name": "assets_turn",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Assets Turnover Ratio"
+        },
+        {
+          "name": "op_income",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Operating Income"
+        },
+        {
+          "name": "ebit",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Earnings Before Interest and Taxes"
+        },
+        {
+          "name": "ebitda",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Earnings Before Interest, Taxes, Depreciation and Amortization"
+        },
+        {
+          "name": "fcff",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Free Cash Flow to Firm"
+        },
+        {
+          "name": "fcfe",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Free Cash Flow to Equity"
+        },
+        {
+          "name": "current_exint",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Non-interest-bearing Current Liabilities"
+        },
+        {
+          "name": "noncurrent_exint",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Non-interest-bearing Non-current Liabilities"
+        },
+        {
+          "name": "interestdebt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Interest-bearing Debt"
+        },
+        {
+          "name": "netdebt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Debt"
+        },
+        {
+          "name": "tangible_asset",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Tangible Assets"
+        },
+        {
+          "name": "working_capital",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Working Capital"
+        },
+        {
+          "name": "networking_capital",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Working Capital"
+        },
+        {
+          "name": "invest_capital",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Invested Capital"
+        },
+        {
+          "name": "retained_earnings",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Retained Earnings"
+        },
+        {
+          "name": "diluted2_eps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Diluted Earnings Per Share at Period End"
+        },
+        {
+          "name": "bps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Assets Per Share"
+        },
+        {
+          "name": "ocfps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Cash Flow Per Share"
+        },
+        {
+          "name": "retainedps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Retained Earnings Per Share"
+        },
+        {
+          "name": "cfps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow Per Share"
+        },
+        {
+          "name": "ebit_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Earnings Before Interest and Taxes Per Share"
+        },
+        {
+          "name": "fcff_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Free Cash Flow to Firm Per Share"
+        },
+        {
+          "name": "fcfe_ps",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Free Cash Flow to Equity Per Share"
+        },
+        {
+          "name": "netprofit_margin",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit Margin"
+        },
+        {
+          "name": "grossprofit_margin",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Gross Profit Margin"
+        },
+        {
+          "name": "cogs_of_sales",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Cost of Goods Sold Ratio"
+        },
+        {
+          "name": "expense_of_sales",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Period Expense Ratio"
+        },
+        {
+          "name": "profit_to_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit to Total Revenue"
+        },
+        {
+          "name": "saleexp_to_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Selling Expenses to Total Revenue"
+        },
+        {
+          "name": "adminexp_of_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Administrative Expenses to Total Revenue"
+        },
+        {
+          "name": "finaexp_of_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Financial Expenses to Total Revenue"
+        },
+        {
+          "name": "impai_ttm",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Asset Impairment Loss to Total Revenue"
+        },
+        {
+          "name": "gc_of_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Operating Cost to Total Revenue"
+        },
+        {
+          "name": "op_of_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Profit to Total Revenue"
+        },
+        {
+          "name": "ebit_of_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "EBIT to Total Revenue"
+        },
+        {
+          "name": "roe",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Equity"
+        },
+        {
+          "name": "roe_waa",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Weighted Average Return on Equity"
+        },
+        {
+          "name": "roe_dt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Equity After Deducting Non-recurring Profit and Loss"
+        },
+        {
+          "name": "roa",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Assets"
+        },
+        {
+          "name": "npta",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit to Total Assets"
+        },
+        {
+          "name": "roic",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Invested Capital"
+        },
+        {
+          "name": "roe_yearly",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Annualized Return on Equity"
+        },
+        {
+          "name": "roa2_yearly",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Annualized Return on Assets"
+        },
+        {
+          "name": "debt_to_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Debt to Assets Ratio"
+        },
+        {
+          "name": "assets_to_eqt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Equity Multiplier"
+        },
+        {
+          "name": "dp_assets_to_eqt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Equity Multiplier (DuPont Analysis)"
+        },
+        {
+          "name": "ca_to_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Current Assets to Total Assets"
+        },
+        {
+          "name": "nca_to_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Non-current Assets to Total Assets"
+        },
+        {
+          "name": "tbassets_to_totalassets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Tangible Assets to Total Assets"
+        },
+        {
+          "name": "int_to_talcap",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Interest-bearing Debt to Total Invested Capital"
+        },
+        {
+          "name": "eqt_to_talcapital",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Equity Attributable to Parent Company to Total Invested Capital"
+        },
+        {
+          "name": "currentdebt_to_debt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Current Debt to Total Debt"
+        },
+        {
+          "name": "longdeb_to_debt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Long-term Debt to Total Debt"
+        },
+        {
+          "name": "ocf_to_shortdebt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Operating Activities to Current Liabilities"
+        },
+        {
+          "name": "debt_to_eqt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Debt to Equity Ratio"
+        },
+        {
+          "name": "eqt_to_debt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Equity Attributable to Parent Company to Total Liabilities"
+        },
+        {
+          "name": "eqt_to_interestdebt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Equity Attributable to Parent Company to Interest-bearing Debt"
+        },
+        {
+          "name": "tangibleasset_to_debt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Tangible Assets to Total Liabilities"
+        },
+        {
+          "name": "tangasset_to_intdebt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Tangible Assets to Interest-bearing Debt"
+        },
+        {
+          "name": "tangibleasset_to_netdebt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Tangible Assets to Net Debt"
+        },
+        {
+          "name": "ocf_to_debt",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Operating Activities to Total Liabilities"
+        },
+        {
+          "name": "turn_days",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Cycle"
+        },
+        {
+          "name": "roa_yearly",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Annualized Return on Total Assets"
+        },
+        {
+          "name": "roa_dp",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Total Assets (DuPont Analysis)"
+        },
+        {
+          "name": "fixed_assets",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Fixed Assets"
+        },
+        {
+          "name": "profit_to_op",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Profit to Revenue"
+        },
+        {
+          "name": "q_saleexp_to_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Selling Expenses to Total Revenue (Single Quarter)"
+        },
+        {
+          "name": "q_gc_to_gr",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Operating Cost to Total Revenue (Single Quarter)"
+        },
+        {
+          "name": "q_roe",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Equity (Single Quarter)"
+        },
+        {
+          "name": "q_dt_roe",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Equity After Deducting Non-recurring Profit and Loss (Single Quarter)"
+        },
+        {
+          "name": "q_npta",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit to Total Assets (Single Quarter)"
+        },
+        {
+          "name": "q_ocf_to_sales",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Operating Activities to Revenue (Single Quarter)"
+        },
+        {
+          "name": "basic_eps_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Basic Earnings Per Share Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "dt_eps_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Diluted Earnings Per Share Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "cfps_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Cash Flow Per Share Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "op_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Profit Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "ebt_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Profit Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "netprofit_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit Attributable to Parent Company Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "dt_netprofit_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Profit Attributable to Parent Company After Deducting Non-recurring Profit and Loss Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "ocf_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Cash Flow from Operating Activities Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "roe_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Return on Equity (Diluted) Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "bps_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Assets Per Share Growth Rate Relative to Beginning of Year(%)"
+        },
+        {
+          "name": "assets_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Assets Growth Rate Relative to Beginning of Year(%)"
+        },
+        {
+          "name": "eqt_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Equity Attributable to Parent Company Growth Rate Relative to Beginning of Year(%)"
+        },
+        {
+          "name": "tr_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Revenue Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "or_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Revenue Year-over-Year Growth Rate(%)"
+        },
+        {
+          "name": "q_sales_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Revenue Year-over-Year Growth Rate(%)(Single Quarter)"
+        },
+        {
+          "name": "q_op_qoq",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Operating Profit Quarter-over-Quarter Growth Rate(%)(Single Quarter)"
+        },
+        {
+          "name": "equity_yoy",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Net Assets Year-over-Year Growth Rate"
+        },
+        {
+          "name": "net_profit_ratio",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Net Profit Ratio"
+        },
+        {
+          "name": "netprofit_ratio",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Net Profit Ratio"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_market_pr_factor",
+      "title": "Stock adjustment factors. You can retrieve all historical adjustment factors for a single stock, or retrieve the adjustment factors for all stocks on a single day.",
+      "row_count": 2967395,
+      "source_rows": 2967395,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "adj_factor",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Adjustment Factor"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_refer_holders_top10",
+      "title": "Top ten shareholders data of listed companies.",
+      "row_count": 416409,
+      "source_rows": 416409,
+      "fields": [
+        {
+          "name": "id",
+          "data_type": "TEXT",
+          "logical_type": "identifier",
+          "description": "Record ID"
+        },
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "ann_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Announcement Date"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Reporting Period"
+        },
+        {
+          "name": "holder_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Holder Name"
+        },
+        {
+          "name": "hold_amount",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Holding Amount"
+        },
+        {
+          "name": "hold_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Holding Ratio(%)"
+        },
+        {
+          "name": "hold_float_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Holding Ratio of Circulating Shares(%)"
+        },
+        {
+          "name": "hold_change",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Holding Change"
+        },
+        {
+          "name": "holder_type",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Holder Type"
+        }
+      ]
+    },
+    {
+      "name": "cd80_stock_refer_pledge_stat",
+      "title": "Stock pledge statistical data.",
+      "row_count": 258373,
+      "source_rows": 258373,
+      "fields": [
+        {
+          "name": "ts_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "TS Code"
+        },
+        {
+          "name": "end_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "End Date"
+        },
+        {
+          "name": "pledge_count",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Pledge Count"
+        },
+        {
+          "name": "unrest_pledge",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Unrestricted Shares Pledged"
+        },
+        {
+          "name": "rest_pledge",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Restricted Shares Pledged"
+        },
+        {
+          "name": "total_share",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Total Shares"
+        },
+        {
+          "name": "pledge_ratio",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Pledge Ratio(%)"
+        }
+      ]
+    },
+    {
+      "name": "cd80_yc_cb",
+      "title": "ChinaBond government bond yield curve data, including the observation date, curve identifier, curve type, maturity, and corresponding yield.",
+      "row_count": 565372,
+      "source_rows": 565372,
+      "fields": [
+        {
+          "name": "trade_date",
+          "data_type": "TEXT",
+          "logical_type": "date",
+          "description": "Trade Date"
+        },
+        {
+          "name": "curve_code",
+          "data_type": "TEXT",
+          "logical_type": "code",
+          "description": "Curve Code"
+        },
+        {
+          "name": "curve_name",
+          "data_type": "TEXT",
+          "logical_type": "text",
+          "description": "Curve Name"
+        },
+        {
+          "name": "curve_type",
+          "data_type": "INTEGER",
+          "logical_type": "number",
+          "description": "Curve Type: 0 = Yield to Maturity, 1 = Spot Rate"
+        },
+        {
+          "name": "maturity_years",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Maturity in Years"
+        },
+        {
+          "name": "yield_percent",
+          "data_type": "REAL",
+          "logical_type": "number",
+          "description": "Yield in Percent"
+        }
+      ]
+    }
+  ],
+  "count": 37
+}

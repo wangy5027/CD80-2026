@@ -1,0 +1,39 @@
+{
+  "format": "cd80.capability/1",
+  "kind": "skill",
+  "name": "金融对话表格",
+  "description": "金融对话表格；只使用明确接入数据，注明来源日期和缺口。",
+  "source": {
+    "identity": "cd80/cd80-table",
+    "format": "platform",
+    "version": "1.0.0"
+  },
+  "files": [
+    {
+      "path": "original/SKILL.md",
+      "sha256": "eda138c1bd5e207ae2d6247682f8302aad262950201512c19f39f3acce6be6da",
+      "size": 530
+    }
+  ],
+  "dependencies": [],
+  "permissions": {
+    "network": "none",
+    "externalEffects": "none",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "skill": {
+    "entry": "original/SKILL.md"
+  },
+  "examples": [
+    {
+      "id": "table-basic",
+      "title": "保留缺失值的表格",
+      "description": "整理给定数据，不联网。",
+      "requirements": [],
+      "filePaths": [],
+      "prompt": "整理为表格：来源本地查询，日期2025-07-02，融资买入单位元；600000为100，000001未提供。",
+      "criteria": "保留600000和000001、日期和来源；100单位元；000001标未提供，不能补零；只输出对话表格，不生成文件。"
+    }
+  ]
+}

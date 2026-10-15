@@ -1,0 +1,19 @@
+{
+  "format": "infinity-application",
+  "formatVersion": "1",
+  "kind": "recipe",
+  "definition": {
+    "name": "研究方法样例",
+    "description": "先确认数据覆盖，再解释指标与结果；需自行准备数据能力。",
+    "goalTemplate": "研究{{证券}}在{{区间}}的价格变化，先检查实际数据覆盖，再分析并绘图。",
+    "constraints": [
+      "不得编造数据",
+      "明确数据来源、单位和限制",
+      "无法取得数据时停止并解释缺口"
+    ]
+  },
+  "dependencies": [],
+  "provenance": {
+    "type": "platform-example"
+  }
+}

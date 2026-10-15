@@ -1,0 +1,11 @@
+<script setup>
+defineProps({ requirements: { type: Array, default: () => [] }, modelValue: { type: Object, default: () => ({}) }, disabled: Boolean });
+const emit = defineEmits(['update:modelValue', 'manage']);
+function choose(current, identity, value) { const next = { ...current }; if (value) next[identity] = value; else delete next[identity]; emit('update:modelValue', next); }
+</script>
+<template>
+  <section v-if="requirements.length" class="asset-connections" aria-label="应用连接配置"><h3>选择我自己的连接</h3><p>这里只保存来源与本人连接的对应关系。凭据由连接管理单独保存，导入包不会沿用作者的授权。</p><label v-for="item in requirements" :key="item.sourceIdentity">{{ item.name || item.sourceIdentity }}<small>用于步骤 {{ item.nodeIds?.join('、') }} · {{ item.sourceIdentity }}</small><select :value="modelValue[item.sourceIdentity] || ''" :disabled="disabled" :aria-label="'连接 · ' + item.sourceIdentity" @change="choose(modelValue,item.sourceIdentity,$event.target.value)"><option value="">稍后配置 · 先保存草稿</option><option v-if="modelValue[item.sourceIdentity] && !item.options?.some(option => option.connectionId === modelValue[item.sourceIdentity])" :value="modelValue[item.sourceIdentity]" disabled>此前选择的连接现在不可用</option><option v-for="option in item.options || []" :key="option.connectionId" :value="option.connectionId" :disabled="!option.configured || !option.enabled">{{ option.name }}{{ !option.enabled ? ' · 已停用' : !option.configured ? ' · 尚未配置凭据' : '' }}</option></select><span v-if="!item.options?.length">尚无这个来源的个人连接。可以先保存草稿，在技能池中完成连接配置后再回来选择。</span></label><button type="button" class="secondary-button" :disabled="disabled" @click="emit('manage')">前往技能池的连接管理</button></section>
+</template>
+<style scoped>
+.asset-connections{border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:20px;margin:22px 0}.asset-connections h3{font-size:17px;margin:0 0 12px}.asset-connections p,.asset-connections label>span{font-size:12px;line-height:1.8;color:var(--muted)}.asset-connections label{display:grid;gap:8px;font-size:13px;margin:18px 0}.asset-connections small{font-size:11px;color:var(--muted);overflow-wrap:anywhere}.asset-connections select{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--text);background:var(--surface);font:inherit}.asset-connections button{font-size:12px}@media(max-width:430px){.asset-connections{padding:14px}}
+</style>

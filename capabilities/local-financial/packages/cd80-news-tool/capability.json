@@ -1,0 +1,154 @@
+{
+  "format": "cd80.capability/1",
+  "kind": "tool",
+  "name": "已接入财经新闻工具",
+  "description": "已接入财经新闻工具；只使用明确接入数据，注明来源日期和缺口。",
+  "source": {
+    "identity": "cd80/cd80-news-tool",
+    "format": "platform",
+    "version": "1.0.0"
+  },
+  "files": [
+    {
+      "path": "original/query.py",
+      "sha256": "3d635c1fb8e9db74b2bdfd76f75265659576877f6d1fb18cbe16c8d578cc5dba",
+      "size": 6405
+    },
+    {
+      "path": "original/tool.py",
+      "sha256": "f15984633988ada3d2561b622e5ba66627db58b677084ef8d84014e5b9831d29",
+      "size": 80
+    }
+  ],
+  "dependencies": [],
+  "permissions": {
+    "network": "connector_only",
+    "externalEffects": "none",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "tool": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "title": "条数"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "title": "跳过条数"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "eastmoney",
+            "cls"
+          ],
+          "title": "新闻来源"
+        },
+        "keyword": {
+          "type": "string",
+          "maxLength": 80,
+          "title": "关键词"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "python_connector",
+      "path": "original/tool.py",
+      "callable": "run",
+      "connections": [
+        {
+          "identity": "cd80.news",
+          "operations": [
+            "latest"
+          ]
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "id": "real-query",
+      "title": "已接入财经新闻真实读取",
+      "description": "实际调用已接入接口，按字段与业务口径核对。",
+      "requirements": [
+        "保存个人工具副本后运行示例，通过后主动启用。"
+      ],
+      "filePaths": [],
+      "input": {
+        "source": "eastmoney",
+        "limit": 3
+      },
+      "assertions": [
+        {
+          "path": [
+            "source"
+          ],
+          "op": "eq",
+          "value": "akshare"
+        },
+        {
+          "path": [
+            "records"
+          ],
+          "op": "minItems",
+          "value": 1
+        },
+        {
+          "path": [
+            "records"
+          ],
+          "op": "eachType",
+          "value": "object"
+        },
+        {
+          "path": [
+            "provider_source"
+          ],
+          "op": "eq",
+          "value": "eastmoney"
+        },
+        {
+          "path": [
+            "records",
+            0
+          ],
+          "op": "requiredKeys",
+          "value": [
+            "title",
+            "published_at",
+            "summary"
+          ]
+        },
+        {
+          "path": [
+            "records",
+            0,
+            "published_at"
+          ],
+          "op": "date",
+          "value": "iso-datetime"
+        },
+        {
+          "path": [
+            "cache"
+          ],
+          "op": "requiredKeys",
+          "value": [
+            "stale",
+            "fetched_at"
+          ]
+        }
+      ],
+      "prompt": "读取东方财富最新3条财经新闻，说明来源和缓存状态；如果读取失败请直接说明，不换来源。"
+    }
+  ]
+}

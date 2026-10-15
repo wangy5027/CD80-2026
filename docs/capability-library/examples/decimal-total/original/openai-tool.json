@@ -1,0 +1,27 @@
+{
+  "type": "function",
+  "function": {
+    "name": "decimal_total",
+    "description": "Sum decimal strings.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "title": "数字",
+            "minLength": 1
+          },
+          "title": "参与求和的数字",
+          "description": "逐项填写十进制数字，例如 0.10。保留原始精度。",
+          "minItems": 1
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

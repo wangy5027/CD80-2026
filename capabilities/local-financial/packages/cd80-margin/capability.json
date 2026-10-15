@@ -1,0 +1,48 @@
+{
+  "format": "cd80.capability/1",
+  "kind": "skill",
+  "name": "本地融资融券",
+  "description": "本地融资融券；只使用明确接入数据，注明来源日期和缺口。",
+  "source": {
+    "identity": "cd80/cd80-margin",
+    "format": "platform",
+    "version": "1.0.0"
+  },
+  "files": [
+    {
+      "path": "original/SKILL.md",
+      "sha256": "35b66424b06bbba45a90ba56231930d42acfa43f40fb01d5087dbb122379f348",
+      "size": 1099
+    }
+  ],
+  "dependencies": [
+    {
+      "sourceIdentity": "cd80/cd80-margin-tool",
+      "contentDigest": "f558b3bd3022aa73d63ae34af432d1f6514842e3a3824c1f624917ee7e8f2e01",
+      "required": true,
+      "reason": "读取已接入的业务数据"
+    }
+  ],
+  "permissions": {
+    "network": "none",
+    "externalEffects": "none",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "skill": {
+    "entry": "original/SKILL.md"
+  },
+  "examples": [
+    {
+      "id": "real-skill",
+      "title": "本地融资融券对话示例",
+      "description": "调用依赖工具，按实际数据回答。",
+      "requirements": [
+        "先复制并验证启用依赖Tool，再复制本Skill。"
+      ],
+      "filePaths": [],
+      "prompt": "查询600000在2025-07-02的融资买入、偿还和净买入，并说明数据日期。",
+      "criteria": "必须实际调用依赖Tool；数值与返回一致；注明来源和日期及必要单位；不补造缺失数据，不调用南财，不把历史数据当实时。新闻读取失败不算本次发布成功。两融金额只能标注源表原值/单位待核对，不能猜测元或进行换算。"
+    }
+  ]
+}

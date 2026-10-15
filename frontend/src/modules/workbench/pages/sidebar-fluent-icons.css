@@ -1,0 +1,48 @@
+/* Sidebar icons only. Do not attach the legacy .icon class to SidebarIcon. */
+.sidebar .fluent-nav-icon,
+.mobile-nav-toggle .fluent-nav-icon {
+  color: var(--sidebar-icon-color, #796d89);
+  fill: currentColor;
+  stroke: none;
+  stroke-width: 0;
+  transition: color 140ms ease;
+}
+
+.sidebar :is(.nav-row, .side-row, .user-row, .icon-button):is(:hover, :focus-visible, :focus-within) .fluent-nav-icon,
+.mobile-nav-toggle:is(:hover, :focus-visible) .fluent-nav-icon {
+  color: var(--sidebar-icon-hover, #6b4b9b);
+}
+
+.sidebar .fluent-nav-icon.is-active,
+.sidebar :is(.nav-row, .side-row, .user-row).active .fluent-nav-icon,
+.sidebar .user-row[aria-current="page"] .fluent-nav-icon {
+  color: var(--sidebar-icon-active, var(--aurora-brand, #7652b7));
+}
+
+.sidebar .project-symbol .fluent-nav-icon {
+  color: inherit;
+}
+
+/* Preserve the old toolbar's spinner replacement without changing .icon globally. */
+.sidebar .icon-button[aria-busy="true"] > .fluent-nav-icon {
+  display: none;
+}
+
+/* Mirror the two collapsed-sidebar rules in the supplied source, only for the account settings glyph.
+   If the current project changed these breakpoints, align these two rules with its existing rules. */
+@media (min-width: 768px) {
+  .app-shell.collapsed .sidebar-bottom .user-row > .fluent-nav-icon {
+    display: none;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .sidebar-bottom .user-row > .fluent-nav-icon {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .fluent-nav-icon,
+  .mobile-nav-toggle .fluent-nav-icon {
+    transition: none;
+  }
+}

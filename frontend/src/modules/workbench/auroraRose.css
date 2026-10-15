@@ -1,0 +1,127 @@
+/* Login and business content panels keep their own opaque surfaces. */
+.app-shell.theme-aurora-rose {
+  --aurora-bg: #fcfbff;
+  --aurora-pink-mist: #f8eaf3;
+  --aurora-lilac-mist: #eee8fa;
+  --aurora-text: #172033;
+  --aurora-text-secondary: #606579;
+  --aurora-brand: #7652b7;
+  --aurora-brand-hover: #6341a0;
+  --aurora-brand-soft: #f0e9fa;
+  --aurora-focus: #865bc7;
+  --aurora-glass: rgb(255 255 255 / 62%);
+  --aurora-glass-strong: rgb(255 255 255 / 80%);
+  --aurora-border: rgb(151 126 181 / 30%);
+  --aurora-shadow: 0 16px 40px rgb(83 55 117 / 9%);
+  --bg: var(--aurora-bg);
+  --text: var(--aurora-text);
+  --muted: var(--aurora-text-secondary);
+  --text-muted: var(--aurora-text-secondary);
+  --dim: #70677d;
+  --accent: var(--aurora-brand);
+  --accent-dark: var(--aurora-brand-soft);
+  --focus-ring: var(--aurora-focus);
+  color: var(--aurora-text);
+  background: radial-gradient(ellipse at 0% 24%, rgb(245 187 221 / 24%), transparent 42%), radial-gradient(ellipse at 82% 15%, rgb(199 165 245 / 19%), transparent 52%), var(--aurora-bg);
+}
+
+.theme-aurora-rose .main-panel:has(> .home-scroll),
+.theme-aurora-rose .home-scroll { background: transparent; }
+
+.theme-aurora-rose .sidebar {
+  background: linear-gradient(160deg, #fffafd, #fcfaff);
+  border-right-color: var(--aurora-border);
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 95%), 4px 0 24px rgb(83 55 117 / 3%);
+}
+.theme-aurora-rose .sidebar .brand-mark {
+  background: linear-gradient(145deg, #8863bf, #7652b7);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 24%), 0 5px 16px rgb(118 82 183 / 14%);
+}
+.theme-aurora-rose .sidebar .brand-name { color: var(--aurora-text); }
+.theme-aurora-rose .sidebar .brand-sub,
+.theme-aurora-rose .sidebar .side-heading,
+.theme-aurora-rose .sidebar .task-time { color: #70677d; }
+.theme-aurora-rose .sidebar .side-scroll { scrollbar-color: #d5cce1 transparent; }
+.theme-aurora-rose .sidebar .nav-row,
+.theme-aurora-rose .sidebar .side-row { color: #514b60; }
+.theme-aurora-rose .sidebar .nav-row .icon,
+.theme-aurora-rose .sidebar .side-row .icon,
+.theme-aurora-rose .sidebar .task-indicator { color: #766b86; }
+.theme-aurora-rose .sidebar .nav-row:hover,
+.theme-aurora-rose .sidebar .side-row:hover,
+.theme-aurora-rose .sidebar .user-row:hover { background: #f5f0f9; color: var(--aurora-brand-hover); }
+.theme-aurora-rose .sidebar .nav-row.active,
+.theme-aurora-rose .sidebar .side-row.active,
+.theme-aurora-rose .sidebar .user-row[aria-current="page"] {
+  color: var(--aurora-brand-hover);
+  background: var(--aurora-brand-soft);
+  box-shadow: inset 2px 0 0 var(--aurora-brand);
+}
+.theme-aurora-rose .sidebar .nav-row.active:hover,
+.theme-aurora-rose .sidebar .side-row.active:hover { background: #e9dff5; }
+.theme-aurora-rose .sidebar .nav-row.active .icon,
+.theme-aurora-rose .sidebar .side-row.active .icon { color: var(--aurora-brand-hover); }
+.theme-aurora-rose .sidebar .icon-button:hover:not(:disabled),
+.theme-aurora-rose .sidebar .icon-button.active { background: var(--aurora-brand-soft); color: var(--aurora-brand-hover); }
+.theme-aurora-rose .sidebar .project-cta {
+  background: linear-gradient(150deg, rgb(255 255 255 / 84%), rgb(240 233 250 / 60%));
+  border-color: var(--aurora-border);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%);
+}
+.theme-aurora-rose .sidebar .project-cta p { color: var(--aurora-text-secondary); }
+.theme-aurora-rose .sidebar .project-cta button {
+  color: var(--aurora-brand-hover);
+  background: rgb(255 255 255 / 90%);
+  border-color: #dcd0eb;
+}
+.theme-aurora-rose .sidebar .project-cta button:hover { background: var(--aurora-brand-soft); }
+.theme-aurora-rose .sidebar .project-symbol,
+.theme-aurora-rose .sidebar .small-avatar,
+.theme-aurora-rose .sidebar .user-avatar { color: var(--aurora-brand-hover); background: var(--aurora-brand-soft); }
+.theme-aurora-rose .sidebar .side-section,
+.theme-aurora-rose .sidebar .sidebar-bottom,
+.theme-aurora-rose .sidebar .special-apps-list { border-color: var(--aurora-border); }
+.theme-aurora-rose .sidebar .user-row { color: var(--aurora-text); }
+
+.theme-aurora-rose .home-utility-row .agent-mode-toggle { color: var(--aurora-text-secondary); }
+.theme-aurora-rose .home-utility-row .agent-mode-toggle label { color: var(--aurora-text-secondary); }
+.theme-aurora-rose .home-utility-row .agent-mode-toggle select,
+.theme-aurora-rose .home-search {
+  color: var(--aurora-text-secondary);
+  background: #fefcfe;
+  border-color: var(--aurora-border);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 95%), 0 3px 12px rgb(83 55 117 / 3%);
+}
+.theme-aurora-rose .home-utility-row .agent-mode-toggle select { color: var(--aurora-text); }
+.theme-aurora-rose .home-search:hover {
+  color: var(--aurora-brand-hover);
+  border-color: #cebcdf;
+  background: #fbf7fe;
+}
+.theme-aurora-rose .home-search .icon { color: #766b86; }
+.theme-aurora-rose .home-search kbd { color: #70677d; background: #f5f0fa; border-color: var(--aurora-border); }
+.theme-aurora-rose .home-search:focus-visible,
+.theme-aurora-rose .home-utility-row select:focus-visible { outline: 2px solid var(--aurora-focus); outline-offset: 3px; }
+.theme-aurora-rose .mobile-nav-toggle { background: #fdfaff; border-color: var(--aurora-border); color: var(--aurora-brand-hover); box-shadow: var(--aurora-shadow); }
+.theme-aurora-rose .mobile-nav-toggle:hover { background: var(--aurora-brand-soft); }
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .theme-aurora-rose .sidebar {
+    background: linear-gradient(160deg, rgb(255 250 253 / 66%), rgb(252 250 255 / 60%));
+    -webkit-backdrop-filter: blur(20px) saturate(118%);
+    backdrop-filter: blur(20px) saturate(118%);
+  }
+  .theme-aurora-rose .home-utility-row .agent-mode-toggle select,
+  .theme-aurora-rose .home-search {
+    background: var(--aurora-glass);
+    -webkit-backdrop-filter: blur(18px) saturate(118%);
+    backdrop-filter: blur(18px) saturate(118%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-aurora-rose { transition: none; }
+  .theme-aurora-rose .sidebar,
+  .theme-aurora-rose .special-apps-chevron { transition: none; }
+  .theme-aurora-rose .main-panel.page-entering > .page { animation: none; }
+}

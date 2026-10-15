@@ -1,0 +1,26 @@
+{
+  "format": "cd80.capability/1",
+  "dependencies": [],
+  "permissions": {
+    "network": "connector_only",
+    "externalEffects": "unknown",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "kind": "mcp_connection",
+  "name": "只读查询连接示例",
+  "description": "仅为配置格式示例，域名不可访问。",
+  "source": {
+    "identity": "org.example/quotes",
+    "format": "mcp"
+  },
+  "files": [],
+  "connection": {
+    "transport": "streamable_http",
+    "endpoint": "https://quotes.example.invalid/mcp",
+    "authentication": {
+      "mode": "bearer",
+      "configurationName": "quotes-token"
+    }
+  }
+}

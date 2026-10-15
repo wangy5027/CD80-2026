@@ -1,0 +1,1082 @@
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "cd80.capability/1"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "skill",
+        "tool",
+        "mcp_connection"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "identity": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 256
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "agent_skills",
+            "openai_chat",
+            "openai_responses",
+            "claude_tool",
+            "platform",
+            "mcp"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "version": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "identity",
+        "format"
+      ],
+      "additionalProperties": false
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[^:]+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "size"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sourceIdentity": {
+            "type": "string",
+            "minLength": 3
+          },
+          "contentDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "required": {
+            "const": true
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "sourceIdentity",
+          "contentDigest",
+          "required",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "network": {
+          "type": "string",
+          "enum": [
+            "none",
+            "connector_only"
+          ]
+        },
+        "externalEffects": {
+          "type": "string",
+          "enum": [
+            "none",
+            "write",
+            "unknown"
+          ]
+        },
+        "inputFiles": {
+          "type": "boolean"
+        },
+        "outputFiles": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "network",
+        "externalEffects",
+        "inputFiles",
+        "outputFiles"
+      ],
+      "additionalProperties": false
+    },
+    "skill": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[^:]+$"
+        },
+        "scripts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "python_wasi"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[^:]+$"
+              },
+              "callable": {
+                "const": "run"
+              }
+            },
+            "required": [
+              "type",
+              "path",
+              "callable"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "entry"
+      ],
+      "additionalProperties": false
+    },
+    "tool": {
+      "type": "object",
+      "properties": {
+        "inputSchema": {
+          "type": "object"
+        },
+        "outputSchema": {
+          "type": "object"
+        },
+        "execution": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "python_wasi"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512,
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[^:]+$"
+                },
+                "callable": {
+                  "const": "run"
+                }
+              },
+              "required": [
+                "type",
+                "path",
+                "callable"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "builtin"
+                },
+                "handlerId": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "type",
+                "handlerId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "mcp_http"
+                },
+                "connectionIdentity": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "toolName": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "toolSchemaDigest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "type",
+                "connectionIdentity",
+                "toolName",
+                "toolSchemaDigest"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "python_connector"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512,
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[^:]+$"
+                },
+                "callable": {
+                  "const": "run"
+                },
+                "connections": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 4,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "identity": {
+                        "type": "string"
+                      },
+                      "operations": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "identity",
+                      "operations"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "protocolVersion": {
+                  "type": "string",
+                  "enum": [
+                    "1",
+                    "2"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "path",
+                "callable",
+                "connections"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "fixed_pipeline"
+                },
+                "protocolVersion": {
+                  "const": "1"
+                },
+                "steps": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,39}$"
+                          },
+                          "inputFrom": {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          "outputSchema": {
+                            "type": "object"
+                          },
+                          "kind": {
+                            "const": "python_wasi"
+                          },
+                          "path": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 512
+                          },
+                          "callable": {
+                            "const": "run"
+                          },
+                          "inputBindings": {
+                            "type": "object",
+                            "maxProperties": 64,
+                            "additionalProperties": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "maxLength": 100
+                                    },
+                                    "path": {
+                                      "type": "array",
+                                      "maxItems": 12,
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "integer"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "source"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "value": {}
+                                  },
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "inputFile": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 100
+                                    }
+                                  },
+                                  "required": [
+                                    "inputFile"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "artifact": {
+                                      "type": "object",
+                                      "properties": {
+                                        "stepId": {
+                                          "type": "string",
+                                          "maxLength": 40
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "maxLength": 240
+                                        }
+                                      },
+                                      "required": [
+                                        "stepId",
+                                        "name"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "artifact"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "fileAliases": {
+                            "type": "boolean"
+                          },
+                          "delivery": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "type": "object"
+                              },
+                              "files": {
+                                "type": "array",
+                                "maxItems": 64,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 240
+                                    },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "maxLength": 128
+                                    }
+                                  },
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "evidenceFields": {
+                                "type": "array",
+                                "maxItems": 64,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 512
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "path",
+                          "callable",
+                          "outputSchema"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,39}$"
+                          },
+                          "inputFrom": {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          "outputSchema": {
+                            "type": "object"
+                          },
+                          "kind": {
+                            "const": "model"
+                          },
+                          "prompt": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 120000
+                          },
+                          "inputBindings": {
+                            "type": "object",
+                            "maxProperties": 64,
+                            "additionalProperties": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "maxLength": 100
+                                    },
+                                    "path": {
+                                      "type": "array",
+                                      "maxItems": 12,
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "integer"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "source"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "value": {}
+                                  },
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "inputFile": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 100
+                                    }
+                                  },
+                                  "required": [
+                                    "inputFile"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "artifact": {
+                                      "type": "object",
+                                      "properties": {
+                                        "stepId": {
+                                          "type": "string",
+                                          "maxLength": 40
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "maxLength": 240
+                                        }
+                                      },
+                                      "required": [
+                                        "stepId",
+                                        "name"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "artifact"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "delivery": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "type": "object"
+                              },
+                              "files": {
+                                "type": "array",
+                                "maxItems": 64,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 240
+                                    },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "maxLength": 128
+                                    }
+                                  },
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "evidenceFields": {
+                                "type": "array",
+                                "maxItems": 64,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 512
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "prompt",
+                          "outputSchema"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,39}$"
+                          },
+                          "inputFrom": {
+                            "type": "string",
+                            "maxLength": 100
+                          },
+                          "outputSchema": {
+                            "type": "object"
+                          },
+                          "inputBindings": {
+                            "type": "object",
+                            "maxProperties": 64,
+                            "additionalProperties": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "source": {
+                                      "type": "string",
+                                      "maxLength": 100
+                                    },
+                                    "path": {
+                                      "type": "array",
+                                      "maxItems": 12,
+                                      "items": {
+                                        "type": [
+                                          "string",
+                                          "integer"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "source"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "value": {}
+                                  },
+                                  "required": [
+                                    "value"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "inputFile": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 100
+                                    }
+                                  },
+                                  "required": [
+                                    "inputFile"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "artifact": {
+                                      "type": "object",
+                                      "properties": {
+                                        "stepId": {
+                                          "type": "string",
+                                          "maxLength": 40
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "maxLength": 240
+                                        }
+                                      },
+                                      "required": [
+                                        "stepId",
+                                        "name"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "artifact"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          },
+                          "kind": {
+                            "const": "tool"
+                          },
+                          "sourceIdentity": {
+                            "type": "string",
+                            "minLength": 3
+                          },
+                          "contentDigest": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "delivery": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "type": "object"
+                              },
+                              "files": {
+                                "type": "array",
+                                "maxItems": 64,
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 240
+                                    },
+                                    "mediaType": {
+                                      "type": "string",
+                                      "maxLength": 128
+                                    }
+                                  },
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "evidenceFields": {
+                                "type": "array",
+                                "maxItems": 64,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 512
+                                }
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "sourceIdentity",
+                          "contentDigest",
+                          "outputSchema"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "outputFileNames": {
+                  "type": "string",
+                  "const": "last_step"
+                }
+              },
+              "required": [
+                "type",
+                "protocolVersion",
+                "steps"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "inputSchema",
+        "execution"
+      ],
+      "additionalProperties": false
+    },
+    "connection": {
+      "type": "object",
+      "properties": {
+        "transport": {
+          "type": "string",
+          "enum": [
+            "streamable_http"
+          ]
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri"
+        },
+        "authentication": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "none",
+                "bearer",
+                "api_key"
+              ]
+            },
+            "headerName": {
+              "type": "string"
+            },
+            "configurationName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "transport",
+        "endpoint",
+        "authentication"
+      ],
+      "additionalProperties": false
+    },
+    "examples": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "description",
+          "requirements",
+          "filePaths"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "criteria": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "input": {
+            "type": "object"
+          },
+          "expected": {},
+          "requirements": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "maxLength": 4096
+            }
+          },
+          "filePaths": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          "assertions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "array",
+                  "maxItems": 12,
+                  "items": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  }
+                },
+                "op": {
+                  "enum": [
+                    "eq",
+                    "type",
+                    "minItems",
+                    "requiredKeys",
+                    "eachType",
+                    "date"
+                  ]
+                },
+                "value": {}
+              },
+              "required": [
+                "path",
+                "op",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "format",
+    "kind",
+    "name",
+    "description",
+    "source",
+    "files",
+    "dependencies",
+    "permissions"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cd80:capability:1",
+  "title": "CD80 Capability Manifest v1",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "skill"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "skill"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "tool"
+              ]
+            },
+            {
+              "required": [
+                "connection"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "tool"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "tool"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "skill"
+              ]
+            },
+            {
+              "required": [
+                "connection"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "mcp_connection"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "connection"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "skill"
+              ]
+            },
+            {
+              "required": [
+                "tool"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

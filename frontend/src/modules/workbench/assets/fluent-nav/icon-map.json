@@ -1,0 +1,278 @@
+[
+  {
+    "key": "newTask",
+    "label": "新任务",
+    "official_name": "Compose",
+    "group": "main",
+    "meaning": "编辑方框＋笔；发起新的任务",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/newTask.regular.svg",
+      "filled": "svg/newTask.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "specialApps",
+    "label": "专有应用",
+    "official_name": "Apps List",
+    "group": "main",
+    "meaning": "应用清单；可展开的应用分组",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/specialApps.regular.svg",
+      "filled": "svg/specialApps.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "schedule",
+    "label": "日程",
+    "official_name": "Calendar",
+    "group": "main",
+    "meaning": "日历",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/schedule.regular.svg",
+      "filled": "svg/schedule.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "applications",
+    "label": "应用",
+    "official_name": "App Generic",
+    "group": "main",
+    "meaning": "单个应用窗口；已存在的可运行应用",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/applications.regular.svg",
+      "filled": "svg/applications.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "community",
+    "label": "共创",
+    "official_name": "People Team",
+    "group": "main",
+    "meaning": "团队协作",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/community.regular.svg",
+      "filled": "svg/community.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "skills",
+    "label": "技能池",
+    "official_name": "Puzzle Piece",
+    "group": "main",
+    "meaning": "拼图组件；可组合的能力",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/skills.regular.svg",
+      "filled": "svg/skills.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "files",
+    "label": "文件",
+    "official_name": "Folder",
+    "group": "main",
+    "meaning": "文件夹；亦用于项目文件夹",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/files.regular.svg",
+      "filled": "svg/files.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "data",
+    "label": "数据管理",
+    "official_name": "Database",
+    "group": "main",
+    "meaning": "数据库",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/data.regular.svg",
+      "filled": "svg/data.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "explore",
+    "label": "Explore",
+    "official_name": "Compass Northwest",
+    "group": "child",
+    "meaning": "罗盘；区别于全局搜索",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/explore.regular.svg",
+      "filled": "svg/explore.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "strategyWorkshop",
+    "label": "策略工坊",
+    "official_name": "Branch",
+    "group": "child",
+    "meaning": "分支节点；规则与策略路径",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/strategyWorkshop.regular.svg",
+      "filled": "svg/strategyWorkshop.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "appWorkshop",
+    "label": "应用工坊",
+    "official_name": "Cube",
+    "group": "child",
+    "meaning": "立体模块；应用构建",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/appWorkshop.regular.svg",
+      "filled": "svg/appWorkshop.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "search",
+    "label": "搜索",
+    "official_name": "Search",
+    "group": "utility",
+    "meaning": "全局搜索／最近任务搜索",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/search.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "panelCollapse",
+    "label": "收起侧栏",
+    "official_name": "Panel Left Contract",
+    "group": "utility",
+    "meaning": "侧栏展开时展示；点击后收起",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/panelCollapse.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "panelExpand",
+    "label": "展开侧栏",
+    "official_name": "Panel Left Expand",
+    "group": "utility",
+    "meaning": "侧栏收起时展示；点击后展开",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/panelExpand.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "add",
+    "label": "添加／新建项目",
+    "official_name": "Add",
+    "group": "utility",
+    "meaning": "纯加号；区别于新任务",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/add.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "history",
+    "label": "最近任务",
+    "official_name": "History",
+    "group": "utility",
+    "meaning": "历史记录",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/history.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "settings",
+    "label": "账号与设置",
+    "official_name": "Settings",
+    "group": "utility",
+    "meaning": "设置齿轮",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/settings.regular.svg",
+      "filled": "svg/settings.filled.svg"
+    },
+    "paired": true
+  },
+  {
+    "key": "chevronDown",
+    "label": "展开分组",
+    "official_name": "Chevron Down",
+    "group": "utility",
+    "meaning": "分组关闭时指向下方",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/chevronDown.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "chevronUp",
+    "label": "收起分组",
+    "official_name": "Chevron Up",
+    "group": "utility",
+    "meaning": "分组打开时指向上方",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/chevronUp.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "more",
+    "label": "更多操作",
+    "official_name": "More Horizontal",
+    "group": "utility",
+    "meaning": "省略号菜单",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/more.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "close",
+    "label": "关闭移动端侧栏",
+    "official_name": "Dismiss",
+    "group": "utility",
+    "meaning": "关闭按钮",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/close.regular.svg"
+    },
+    "paired": false
+  },
+  {
+    "key": "menu",
+    "label": "打开移动端侧栏",
+    "official_name": "Navigation",
+    "group": "utility",
+    "meaning": "导航菜单",
+    "view_box": "0 0 20 20",
+    "variants": {
+      "regular": "svg/menu.regular.svg"
+    },
+    "paired": false
+  }
+]

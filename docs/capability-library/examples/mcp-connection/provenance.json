@@ -1,0 +1,8 @@
+{
+  "source": {
+    "identity": "org.example/quotes",
+    "format": "mcp"
+  },
+  "files": [],
+  "note": "Documentation example; no execution or verification evidence."
+}

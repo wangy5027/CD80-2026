@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="240" viewBox="0 0 300 240" fill="none">
+  <defs>
+    <radialGradient id="sphere" cx=".3" cy=".22" r=".85"><stop stop-color="#fffaf2" stop-opacity=".97"/><stop offset=".3" stop-color="#ffe4c4" stop-opacity=".75"/><stop offset=".65" stop-color="#eeb981" stop-opacity=".82"/><stop offset=".86" stop-color="#dfa16c" stop-opacity=".74"/><stop offset="1" stop-color="#fcebd5" stop-opacity=".95"/></radialGradient>
+    <radialGradient id="small" cx=".3" cy=".2" r=".8"><stop stop-color="#fffef9"/><stop offset=".42" stop-color="#f9dfbb"/><stop offset="1" stop-color="#d6a16d"/></radialGradient>
+    <linearGradient id="ring" x1="45" y1="72" x2="251" y2="170" gradientUnits="userSpaceOnUse"><stop stop-color="#dec6a6" stop-opacity=".4"/><stop offset=".4" stop-color="#fff8e9"/><stop offset=".75" stop-color="#d6a570"/><stop offset="1" stop-color="#e8c5a0" stop-opacity=".5"/></linearGradient>
+    <radialGradient id="shadow"><stop stop-color="#bb8b54" stop-opacity=".21"/><stop offset="1" stop-color="#eac998" stop-opacity="0"/></radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#a5733e" flood-opacity=".1"/></filter>
+  </defs>
+  <ellipse cx="152" cy="218" rx="85" ry="17" fill="url(#shadow)"/>
+  <ellipse cx="151" cy="113" rx="107" ry="42" transform="rotate(-27 151 113)" stroke="url(#ring)" stroke-width="1.6"/>
+  <ellipse cx="151" cy="113" rx="50" ry="100" transform="rotate(-33 151 113)" stroke="url(#ring)" stroke-width="1.5"/>
+  <g filter="url(#soft)"><circle cx="151" cy="112" r="66" fill="url(#sphere)" stroke="#f8e6ce" stroke-opacity=".6"/><circle cx="97" cy="165" r="24" fill="url(#small)"/><circle cx="225" cy="78" r="18" fill="url(#small)"/><circle cx="116" cy="39" r="10" fill="url(#small)"/></g>
+  <path d="M58 133C31 179 106 193 179 156C222 135 253 106 249 88" stroke="url(#ring)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M116 29C95 43 112 112 156 168C180 199 204 205 216 189" stroke="url(#ring)" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M107 88C111 64 136 52 157 56" stroke="#fff" stroke-opacity=".6" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="241" cy="134" r="9" fill="url(#small)"/><circle cx="64" cy="119" r="5" fill="url(#small)"/>
+</svg>

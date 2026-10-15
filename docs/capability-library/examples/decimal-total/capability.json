@@ -1,0 +1,90 @@
+{
+  "format": "cd80.capability/1",
+  "dependencies": [],
+  "permissions": {
+    "network": "none",
+    "externalEffects": "none",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "kind": "tool",
+  "name": "十进制求和",
+  "description": "对十进制字符串求和。",
+  "source": {
+    "identity": "org.example/decimal-total",
+    "format": "openai_chat"
+  },
+  "files": [
+    {
+      "path": "original/openai-tool.json",
+      "sha256": "b4ff579715bb8c3005877ba385c6c89bccb8785048d46a5350ab89728c60d207",
+      "size": 649
+    },
+    {
+      "path": "original/tool.py",
+      "sha256": "a87ac979a8f6c489aa34f1f04bf8501ff19c171220c95a924ac166106f96cbf1",
+      "size": 172
+    }
+  ],
+  "tool": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "title": "数字",
+            "minLength": 1
+          },
+          "title": "参与求和的数字",
+          "description": "逐项填写十进制数字，例如 0.10。保留原始精度。",
+          "minItems": 1
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "string",
+          "title": "求和结果"
+        }
+      },
+      "required": [
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "python_wasi",
+      "path": "original/tool.py",
+      "callable": "run"
+    }
+  },
+  "examples": [
+    {
+      "title": "十进制求和：0.10 + 0.20",
+      "description": "逐项填写要相加的十进制数字，例如 0.10 和 0.20。适合金额等需要保留小数精度的求和。",
+      "input": {
+        "values": [
+          "0.10",
+          "0.20"
+        ]
+      },
+      "expected": {
+        "total": "0.30"
+      },
+      "prompt": "请调用十进制求和工具，计算 0.10 与 0.20 的和，并报告工具返回的结果。",
+      "id": "getting-started",
+      "requirements": [
+        "保存为个人副本后运行示例；验证通过再主动启用。"
+      ],
+      "filePaths": []
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "source": {
+    "identity": "org.example/decimal-total",
+    "format": "openai_chat"
+  },
+  "files": [
+    {
+      "path": "original/openai-tool.json",
+      "sha256": "7ec8605a07a089fb17c6601dc813f00c9141a1267025f4a5e6c8afb0ab2d50bd",
+      "size": 422
+    },
+    {
+      "path": "original/tool.py",
+      "sha256": "a87ac979a8f6c489aa34f1f04bf8501ff19c171220c95a924ac166106f96cbf1",
+      "size": 172
+    }
+  ],
+  "note": "Documentation example; no execution or verification evidence."
+}

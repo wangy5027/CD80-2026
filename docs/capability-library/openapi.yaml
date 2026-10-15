@@ -1,0 +1,2458 @@
+openapi: 3.1.0
+info:
+  title: CD80 Skills and Tools Library API
+  version: 0.5.0
+  description: 已实现的能力库接口契约；资源允许扩展状态与审计元数据。导入检查不执行代码。
+servers:
+- url: http://127.0.0.1:8894/desktop/api/capabilities
+security:
+- sessionCookie: []
+paths:
+  /assets:
+    get:
+      summary: 能力目录
+      operationId: get_assets
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetList'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - &id001
+        name: cursor
+        in: query
+        schema:
+          type: string
+      - &id002
+        name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: deleted
+        in: query
+        description: personal目录默认不含删除项；true仅列出删除项
+        schema:
+          type: boolean
+          default: false
+      - name: kind
+        in: query
+        schema:
+          type: string
+          enum:
+          - skill
+          - tool
+      - name: scope
+        in: query
+        schema:
+          type: string
+          enum:
+          - personal
+          - public
+      - name: status
+        in: query
+        schema:
+          type: string
+      - name: q
+        in: query
+        schema:
+          type: string
+  /assets/{assetId}:
+    get:
+      summary: 能力详情
+      operationId: get_assets_assetId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 用于 If-Match 的资源修订
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+    patch:
+      summary: 启用 禁用 归档或恢复
+      operationId: patch_assets_assetId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+      description: 启用指定版本需有效验证；归档不能用于新会话，禁用阻止旧会话后续调用。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetPatch'
+    delete:
+      summary: 删除本人能力并立即停用，保留历史可恢复
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        default:
+          description: 错误；不存在或非本人404，修订冲突412，版本变化409
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /assets/{assetId}/versions:
+    get:
+      summary: 版本列表
+      operationId: get_assets_assetId_versions
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionList'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - *id001
+      - *id002
+  /assets/{assetId}/versions/{versionId}:
+    get:
+      summary: 版本详情
+      operationId: get_assets_assetId_versions_versionId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+  /assets/{assetId}/versions/{versionId}/files/{filePath}:
+    get:
+      summary: 版本原件读取
+      operationId: get_assets_assetId_versions_versionId_files_filePath
+      responses:
+        '200':
+          description: 成功
+          content:
+            text/plain:
+              schema:
+                type: string
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: filePath
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 版本内相对路径；校验后读取，禁止路径穿越
+  /assets/{assetId}/copy:
+    post:
+      summary: 公共能力加入个人库
+      operationId: post_assets_assetId_copy
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedVersion'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirmDuplicate:
+                  type: boolean
+                  default: false
+                  description: 已有一致副本时必须在用户确认后设为true
+                versionId:
+                  type: string
+              required:
+              - versionId
+              additionalProperties: false
+  /imports/preview:
+    post:
+      summary: 只读解析能力原件及静态原用例候选
+      operationId: post_imports_preview
+      description: 不保存版本、不执行代码或模型。返回的 sha256 可由保存请求的 expectedDigest 核对。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: {type: string, format: binary}
+                kind: {type: string, enum: [skill, tool]}
+              required: [file]
+      responses:
+        '200':
+          description: 解析结果；testCases 可能含待补预期
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+                  manifest: {type: object}
+                  testCases:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VersionTestCase'
+                additionalProperties: true
+        default:
+          description: 格式或安全检查错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /imports:
+    post:
+      summary: 导入或重新导入
+      operationId: post_imports
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      description: 只解析检查并保存版本原用例，不执行脚本或联网发现。MCP 描述结果为 connectionId；其他类型结果为 assetId/versionId。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                targetAssetId:
+                  type: string
+                expectedDigest:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+                testCases:
+                  type: string
+                  description: JSON编码的1至10条版本原用例；不提供时从明确示例或静态声明生成
+              required:
+              - file
+              additionalProperties: false
+  /imports/{importId}:
+    get:
+      summary: 导入检查结果
+      operationId: get_imports_importId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: importId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+  /drafts:
+    post:
+      summary: 创建草稿
+      operationId: post_drafts
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DraftInput'
+    get:
+      summary: 恢复本人的草稿目录
+      operationId: get_drafts
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftList'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id002
+  /drafts/{draftId}:
+    get:
+      summary: 草稿详情
+      operationId: get_drafts_draftId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 用于 If-Match 的资源修订
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: draftId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+    patch:
+      summary: 编辑草稿
+      operationId: patch_drafts_draftId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: draftId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                manifest:
+                  type: object
+                  additionalProperties: true
+                files:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path: &id003
+                        type: string
+                        minLength: 1
+                        maxLength: 512
+                        pattern: ^(?!/)(?!.*(?:^|/)\.\.(?:/|$))(?!.*\\)[^:]+$
+                      text:
+                        type: string
+                    required:
+                    - path
+                    - text
+                    additionalProperties: false
+                testCases:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    $ref: '#/components/schemas/VersionTestCase'
+              required: []
+              additionalProperties: false
+    delete:
+      summary: 删除未引用草稿
+      operationId: delete_drafts_draftId
+      responses:
+        '204':
+          description: 成功
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: draftId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+  /drafts/{draftId}/save:
+    post:
+      summary: 确认保存版本并检查
+      operationId: post_drafts_draftId_save
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: draftId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                draftRevision:
+                  type: integer
+                  minimum: 1
+                testCases:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    $ref: '#/components/schemas/VersionTestCase'
+              required:
+              - draftRevision
+              additionalProperties: false
+  /drafts/generate:
+    post:
+      summary: 从已选消息生成草稿
+      operationId: post_drafts_generate
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateDraft'
+  /connections:
+    get:
+      summary: 个人连接列表
+      operationId: get_connections
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionList'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id002
+    post:
+      summary: 保存连接配置 不联网
+      operationId: post_connections
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionInput'
+  /connections/{connectionId}:
+    get:
+      summary: 连接公开配置
+      operationId: get_connections_connectionId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: 用于 If-Match 的资源修订
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+    patch:
+      summary: 更新非敏感连接配置
+      operationId: patch_connections_connectionId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                endpoint:
+                  type: string
+                  format: uri
+                authMode:
+                  type: string
+                  enum:
+                  - none
+                  - bearer
+                  - api_key
+                headerName:
+                  type: string
+              required: []
+              additionalProperties: false
+  /connections/{connectionId}/credentials:
+    post:
+      summary: 设置或清除凭据
+      operationId: post_connections_connectionId_credentials
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialInput'
+  /connections/{connectionId}/discover:
+    post:
+      summary: 主动发现 MCP 工具
+      operationId: post_connections_connectionId_discover
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      description: 只进行协议协商和工具发现，不执行工具。
+  /connections/{connectionId}/tools/import:
+    post:
+      summary: 从发现快照导入工具
+      operationId: post_connections_connectionId_tools_import
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                discoveryId:
+                  type: string
+                toolNames:
+                  type: array
+                  items:
+                    type: string
+              required:
+              - discoveryId
+              - toolNames
+              additionalProperties: false
+  /validation-suites:
+    post:
+      summary: 原用例真实验证；第二组不同输入可选
+      operationId: post_validation_suites
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 150}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidationSuiteInput'
+      responses:
+        '202':
+          description: 已创建作业；读取verificationId的逐案结果，job完成不等于验证通过
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 请求、准入或配置错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /verifications:
+    post:
+      summary: 创建样例试运行
+      operationId: post_verifications
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationInput'
+  /verifications/{verificationId}:
+    get:
+      summary: 验证结果
+      operationId: get_verifications_verificationId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Verification'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: verificationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+  /verifications/{verificationId}/review:
+    post:
+      summary: 确认或拒绝验证效果
+      operationId: post_verifications_verificationId_review
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Verification'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: verificationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision:
+                  type: string
+                  enum:
+                  - accept
+                  - reject
+                comment:
+                  type: string
+              required:
+              - decision
+              additionalProperties: false
+  /invocations:
+    get:
+      summary: 本人调用记录
+      operationId: get_invocations
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvocationList'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id002
+      - name: assetId
+        in: query
+        schema:
+          type: string
+      - name: taskId
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+    post:
+      summary: 显式执行可用 Tool
+      operationId: post_invocations
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvocationInput'
+  /invocations/{invocationId}:
+    get:
+      summary: 调用详情
+      operationId: get_invocations_invocationId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invocation'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: invocationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+  /jobs/{jobId}:
+    get:
+      summary: 读取后台任务状态
+      operationId: get_jobs_jobId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+  /jobs/{jobId}/cancel:
+    post:
+      summary: 请求取消后台任务
+      operationId: post_jobs_jobId_cancel
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+  /jobs/{jobId}/events:
+    get:
+      summary: 读取任务事件流
+      operationId: get_jobs_jobId_events
+      responses:
+        '200':
+          description: 成功
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+      - name: Last-Event-ID
+        in: header
+        schema:
+          type: string
+      - name: after
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+  /exports:
+    post:
+      summary: 生成导出文件
+      description: 'platform 生成含 test-cases.json 的完整 ZIP：普通能力为 capability.zip，自足组件为 component.zip；original 返回原字节，agent_skills 只含标准 Skill 文件。'
+      operationId: post_exports
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 150
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportInput'
+  /downloads/{downloadId}:
+    get:
+      summary: 下载本人产物或导出包
+      operationId: get_downloads_downloadId
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+        default:
+          description: 错误；状态码与 code 见接口文档
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: downloadId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: 不透明资源 ID
+  /trials:
+    post:
+      summary: 自由试用，不产生验证证据
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrialRequest'
+      responses:
+        '202':
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /trials/{trialId}:
+    get:
+      summary: 本人试用记录
+      parameters:
+      - name: trialId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trial'
+        default:
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /test-cases:
+    get:
+      summary: 本人用例分页列表
+      parameters:
+      - name: assetId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestCaseList'
+        default:
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: 保存不可变个人用例
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestCaseInput'
+      responses:
+        '201':
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestCase'
+        default:
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /test-cases/{caseId}:
+    delete:
+      summary: 删除本人用例，保留运行历史
+      parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: ok=true
+        default:
+          description: 结果（错误见Error）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /official-preparations:
+    post:
+      summary: 保存或修复官方个人副本并由平台准备依赖
+      description: 异步复制精确依赖、实际运行官方Tool样例并准备依赖；主Skill仍需用户效果测试和主动启用。不要求个人MCP或数据源配置。不自动恢复明确禁用/归档的工具。
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetId, versionId, scope]
+              properties:
+                confirmDuplicate:
+                  type: boolean
+                  default: false
+                assetId:
+                  type: string
+                versionId:
+                  type: string
+                scope:
+                  enum: [public, personal]
+      responses:
+        '202':
+          description: 返回后台任务；结果与copy结果相同，通过任务接口观察
+        '409':
+          description: 重复副本未确认、个人内容已修改或依赖被主动停用
+        '503':
+          description: 官方服务缺失或不可用，不要求用户填写凭据
+  /assets/{assetId}/restore:
+    post:
+      summary: 恢复本人已删除能力，保持停用
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Asset'
+        default:
+          description: 错误；不存在或非本人404，修订冲突412，版本变化409
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /assets/{assetId}/recheck:
+    post:
+      summary: 重新检查个人版本，不执行测试或继承失效验证
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [versionId]
+              properties:
+                versionId:
+                  type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+        default:
+          description: 错误；不存在或非本人404，修订冲突412，版本变化409
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /assets/{assetId}/official-update:
+    post:
+      summary: 确认更新到指定官方最新版，保留个人旧版本并停用
+      parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: If-Match
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [versionId]
+              properties:
+                versionId:
+                  type: string
+      responses:
+        '202':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        default:
+          description: 错误；不存在或非本人404，修订冲突412，版本变化409
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: ficagent_session
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+      - error
+      - code
+      - requestId
+      additionalProperties: false
+    Job:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+          - cancelling
+          - cancelled
+          - interrupted
+          - unknown
+        statusUrl:
+          type: string
+        eventsUrl:
+          type: string
+        result:
+          type: object
+          additionalProperties: true
+        error:
+          $ref: '#/components/schemas/Error'
+        importId:
+          type: string
+        invocationId:
+          type: string
+        verificationId:
+          type: string
+      required:
+      - jobId
+      - status
+      - statusUrl
+      - eventsUrl
+      additionalProperties: true
+    Issue:
+      type: object
+      properties:
+        code:
+          type: string
+        severity:
+          type: string
+          enum:
+          - blocker
+          - configuration
+          - info
+        message:
+          type: string
+        path:
+          type: string
+        required:
+          type: object
+          additionalProperties: true
+      required:
+      - code
+      - severity
+      - message
+      additionalProperties: false
+    Asset:
+      type: object
+      properties:
+        personalCopies:
+          type: array
+          description: 公共目录按当前账号当前个人内容匹配，排除已删除，名称后缀不影响内容摘要
+          items:
+            type: object
+            properties:
+              assetId:
+                type: string
+              name:
+                type: string
+        displayName:
+          type: string
+          description: 个人副本展示名称，不修改清单摘要
+        deletedAt:
+          type: string
+          description: 可恢复删除时间；未删除时省略
+        configurationStale:
+          type: boolean
+        officialUpdate:
+          type: object
+          properties:
+            available:
+              type: boolean
+            versionId:
+              type: string
+            publicAssetId:
+              type: string
+            number:
+              type: integer
+        assetId:
+          type: string
+        kind:
+          type: string
+          enum:
+          - skill
+          - tool
+        name:
+          type: string
+        description:
+          type: string
+        scope:
+          type: string
+          enum:
+          - personal
+          - public
+        sourceIdentity:
+          type: string
+        lifecycle:
+          type: string
+          enum:
+          - draft
+          - active
+          - archived
+        readiness:
+          type: string
+          enum:
+          - checking
+          - needs_configuration
+          - blocked
+          - unverified
+          - verifying
+          - verified
+          - failed
+        enabled:
+          type: boolean
+        activeVersionId:
+          type:
+          - string
+          - 'null'
+        revision:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+      required:
+      - assetId
+      - kind
+      - name
+      - scope
+      - lifecycle
+      - readiness
+      - enabled
+      - revision
+      additionalProperties: true
+    AssetPatch:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        activeVersionId:
+          type: string
+        lifecycle:
+          type: string
+          enum:
+          - active
+          - archived
+      required: []
+      additionalProperties: false
+    Version:
+      type: object
+      properties:
+        personalCopies:
+          type: array
+          description: 公共目录按当前账号当前个人内容匹配，排除已删除，名称后缀不影响内容摘要
+          items:
+            type: object
+            properties:
+              assetId:
+                type: string
+              name:
+                type: string
+        configurationStale:
+          type: boolean
+        usageGuide:
+          type:
+          - object
+          - 'null'
+          description: usageExamples首项兼容字段；无示例时null
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            prompt:
+              type: string
+            input:
+              type: object
+            expected: {}
+            assertions:
+              $ref: '#/components/schemas/Assertions'
+            criteria:
+              type: string
+            source:
+              type: string
+            versionId:
+              type: string
+        versionId:
+          type: string
+        assetId:
+          type: string
+        number:
+          type: integer
+          minimum: 1
+        contentDigest: &id004
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        manifest:
+          type: object
+          additionalProperties: true
+        testCases:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: 保存时冻结的原用例；旧版本可只读恢复本人历史提交或静态候选，不是通过证据
+          items:
+            $ref: '#/components/schemas/VersionTestCase'
+        configurationId:
+          type:
+          - string
+          - 'null'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+        usageExamples:
+          type: array
+          description: 随版本的作者示例，或精确匹配的旧版官方示例；不代表用户验证通过
+          items:
+            type: object
+      required:
+      - versionId
+      - assetId
+      - number
+      - contentDigest
+      - manifest
+      additionalProperties: true
+    ImportResult:
+      type: object
+      properties:
+        importId:
+          type: string
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - completed
+          - failed
+        assetId:
+          type: string
+        versionId:
+          type: string
+        connectionId:
+          type: string
+        deduplicated:
+          type: boolean
+        readiness:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+      required:
+      - importId
+      - status
+      additionalProperties: true
+    DraftInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - skill
+          - tool
+        name:
+          type: string
+        description:
+          type: string
+        baseAssetId:
+          type: string
+        baseVersionId:
+          type: string
+        manifest:
+          type: object
+          additionalProperties: true
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              path: *id003
+              text:
+                type: string
+              base64:
+                type: string
+            required:
+            - path
+            oneOf:
+            - required: [text]
+            - required: [base64]
+            additionalProperties: false
+        authoringProvenance:
+          type: object
+          description: 来源声明与代码摘要，最多32KiB；不构成历史执行或验证证据
+          additionalProperties: true
+        dependencySnapshots:
+          type: array
+          maxItems: 16
+          items:
+            type: object
+            description: cd80.component/1完整Tool依赖快照，字节/清单/闭包摘要均检查
+        testCases:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/VersionTestCase'
+      required:
+      - kind
+      - name
+      additionalProperties: false
+    Draft:
+      type: object
+      properties:
+        draftId:
+          type: string
+        revision:
+          type: integer
+        content:
+          $ref: '#/components/schemas/DraftInput'
+      required:
+      - draftId
+      - revision
+      - content
+      additionalProperties: true
+    GenerateDraft:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - skill
+          - tool
+        taskId:
+          type: string
+        messageIds:
+          type: array
+          items:
+            type: string
+        instruction:
+          type: string
+        fileIds:
+          type: array
+          items:
+            type: string
+      required:
+      - kind
+      - taskId
+      - messageIds
+      - instruction
+      additionalProperties: false
+    ConnectionInput:
+      type: object
+      properties:
+        name:
+          type: string
+        sourceIdentity:
+          type: string
+        transport:
+          type: string
+          enum:
+          - streamable_http
+        endpoint:
+          type: string
+          format: uri
+        authMode:
+          type: string
+          enum:
+          - none
+          - bearer
+          - api_key
+        headerName:
+          type: string
+      required:
+      - name
+      - sourceIdentity
+      - transport
+      - endpoint
+      - authMode
+      additionalProperties: false
+    Connection:
+      type: object
+      properties:
+        connectionId:
+          type: string
+        name:
+          type: string
+        sourceIdentity:
+          type: string
+        endpoint:
+          type: string
+        transport:
+          type: string
+          enum:
+          - streamable_http
+        authMode:
+          type: string
+          enum:
+          - none
+          - bearer
+          - api_key
+        configured:
+          type: boolean
+        credentialRevision:
+          type: integer
+        revision:
+          type: integer
+      required:
+      - connectionId
+      - name
+      - sourceIdentity
+      - endpoint
+      - transport
+      - authMode
+      - configured
+      - revision
+      additionalProperties: true
+    CredentialInput:
+      oneOf:
+      - type: object
+        properties:
+          action:
+            const: set
+          value:
+            type: string
+            minLength: 1
+            writeOnly: true
+        required:
+        - action
+        - value
+        additionalProperties: false
+      - type: object
+        properties:
+          action:
+            const: clear
+        required:
+        - action
+        additionalProperties: false
+    VersionTestCase:
+      type: object
+      description: 版本原用例，不是验证结果；Skill 的空 criteria 和 Tool 的 null expectation 均待补
+      properties:
+        label: {type: string, minLength: 1, maxLength: 200}
+        input: {type: object}
+        fileIds:
+          type: array
+          maxItems: 8
+          items: {type: string}
+        expectation:
+          oneOf:
+          - type: 'null'
+          - type: object
+            additionalProperties: true
+      required: [label, input, fileIds, expectation]
+      additionalProperties: false
+    ValidationSuiteInput:
+      type: object
+      properties:
+        assetId: {type: string}
+        versionId: {type: string}
+        configurationId: {type: string}
+        cases:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            properties:
+              label: {type: string}
+              input: {type: object}
+              fileIds:
+                type: array
+                maxItems: 8
+                items: {type: string}
+              expectation:
+                $ref: '#/components/schemas/VerificationInput/properties/expectation'
+            required: [input, expectation]
+            additionalProperties: false
+      required: [assetId, versionId, configurationId, cases]
+      additionalProperties: false
+    VerificationInput:
+      type: object
+      properties:
+        assetId:
+          type: string
+        versionId:
+          type: string
+        configurationId:
+          type: string
+        input:
+          type: object
+          additionalProperties: true
+        fileIds:
+          type: array
+          items:
+            type: string
+        expectation:
+          type: object
+          properties:
+            mode:
+              type: string
+              enum:
+              - json_equals
+              - schema
+              - manual_review
+              - assertions
+            value: {}
+            assertions:
+              $ref: '#/components/schemas/Assertions'
+            prompt:
+              type: string
+            criteria:
+              type: string
+          required:
+          - mode
+          additionalProperties: false
+      required:
+      - assetId
+      - versionId
+      - configurationId
+      - input
+      - fileIds
+      - expectation
+      additionalProperties: false
+    Verification:
+      type: object
+      properties:
+        verificationId:
+          type: string
+        jobId:
+          type: string
+        versionId:
+          type: string
+        contextDigest: *id004
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - awaiting_review
+          - passed
+          - failed
+          - cancelled
+          - interrupted
+          - unknown
+        result:
+          type: object
+          additionalProperties: true
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+      required:
+      - verificationId
+      - versionId
+      - status
+      additionalProperties: true
+    InvocationInput:
+      type: object
+      properties:
+        assetId:
+          type: string
+        versionId:
+          type: string
+        configurationId:
+          type: string
+        input:
+          type: object
+          additionalProperties: true
+        fileIds:
+          type: array
+          items:
+            type: string
+        taskId:
+          type: string
+      required:
+      - assetId
+      - versionId
+      - configurationId
+      - input
+      - fileIds
+      additionalProperties: false
+    Invocation:
+      type: object
+      properties:
+        invocationId:
+          type: string
+        jobId:
+          type:
+          - string
+          - 'null'
+        assetId:
+          type: string
+        versionId:
+          type: string
+        configurationId:
+          type: string
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - cancelling
+          - cancelled
+          - interrupted
+          - unknown
+        input:
+          type: object
+          additionalProperties: true
+        result:
+          type: object
+          additionalProperties: true
+        artifacts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              downloadUrl:
+                type: string
+            required:
+            - id
+            - name
+            - downloadUrl
+            additionalProperties: false
+        redactions:
+          type: array
+          items:
+            type: string
+        sourceSkillRefs:
+          type: array
+          items:
+            type: object
+            properties:
+              assetId:
+                type: string
+              versionId:
+                type: string
+            required:
+            - assetId
+            - versionId
+            additionalProperties: false
+        error:
+          $ref: '#/components/schemas/Error'
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required:
+      - invocationId
+      - jobId
+      - assetId
+      - versionId
+      - status
+      additionalProperties: true
+    ExportInput:
+      type: object
+      properties:
+        assetId:
+          type: string
+        versionId:
+          type: string
+        format:
+          type: string
+          enum:
+          - original
+          - platform
+          - agent_skills
+          - openai_chat
+          - openai_responses
+          - claude_tool
+      required:
+      - assetId
+      - versionId
+      - format
+      additionalProperties: false
+    AssetList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - nextCursor
+      additionalProperties: false
+    VersionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Version'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - nextCursor
+      additionalProperties: false
+    ConnectionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - nextCursor
+      additionalProperties: false
+    InvocationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invocation'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - nextCursor
+      additionalProperties: false
+    SavedVersion:
+      type: object
+      properties:
+        assetId:
+          type: string
+        versionId:
+          type: string
+        status:
+          type: string
+        deduplicated:
+          type: boolean
+        readiness:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+      required:
+      - assetId
+      - versionId
+      - status
+      additionalProperties: true
+    DraftList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Draft'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - nextCursor
+      additionalProperties: false
+    TrialRequest:
+      type: object
+      properties:
+        assetId: &id005
+          type: string
+          minLength: 1
+        versionId: &id006
+          type: string
+          minLength: 1
+        configurationId:
+          type: string
+          minLength: 1
+        input: &id007
+          type: object
+        fileIds: &id008
+          type: array
+          maxItems: 8
+          items:
+            type: string
+        prompt: &id009
+          type: string
+          maxLength: 100000
+      required:
+      - assetId
+      - versionId
+      - configurationId
+      - input
+      - fileIds
+    Trial:
+      type: object
+      properties:
+        trialId:
+          type: string
+        sample:
+          $ref: '#/components/schemas/TrialRequest'
+        result:
+          type: object
+        status:
+          type: string
+      additionalProperties: true
+    TestCaseInput:
+      type: object
+      properties:
+        assetId: *id005
+        versionId: *id006
+        input: *id007
+        fileIds: *id008
+        prompt: *id009
+        name: &id010
+          type: string
+          minLength: 1
+          maxLength: 128
+        expected: &id011 {}
+        assertions:
+          $ref: '#/components/schemas/Assertions'
+        criteria: &id012
+          type: string
+      required:
+      - name
+      - assetId
+      - versionId
+      - input
+      - fileIds
+      additionalProperties: false
+    TestCase:
+      type: object
+      properties:
+        assetId: *id005
+        versionId: *id006
+        input: *id007
+        fileIds: *id008
+        prompt: *id009
+        name: *id010
+        expected: *id011
+        assertions:
+          $ref: '#/components/schemas/Assertions'
+        criteria: *id012
+        caseId:
+          type: string
+        createdAt:
+          type: string
+    TestCaseList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestCase'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+      required:
+      - items
+      - nextCursor
+    Assertions:
+      type: array
+      minItems: 1
+      maxItems: 40
+      items:
+        type: object
+        additionalProperties: false
+        required: [path, op, value]
+        properties:
+          path:
+            type: array
+            maxItems: 12
+            items:
+              oneOf:
+              - type: string
+              - type: integer
+                minimum: 0
+          op:
+            enum: [eq, type, minItems, requiredKeys, eachType, date]
+          value: {}

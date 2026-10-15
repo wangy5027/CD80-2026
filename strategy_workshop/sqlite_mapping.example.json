@@ -1,0 +1,42 @@
+{
+  "table": "daily_quotes",
+  "columns": {
+    "symbol": "ts_code",
+    "date": "trade_date",
+    "open": "open",
+    "high": "high",
+    "low": "low",
+    "close": "close",
+    "volume": "volume",
+    "adjustment_factor": "adj_factor",
+    "suspended": "suspended",
+    "limit_up": "limit_up",
+    "limit_down": "limit_down"
+  },
+  "date_format": "%Y%m%d",
+  "instrument": {
+    "name": "华泰柏瑞沪深300ETF",
+    "asset_type": "etf",
+    "lot_size": 100,
+    "quantity_step": 100,
+    "tick_size": 0.001,
+    "settlement_days": 1
+  },
+  "corporate_actions": {
+    "table": "corporate_actions",
+    "columns": {
+      "symbol": "ts_code",
+      "date": "ex_date",
+      "cash_per_share": "cash_per_share",
+      "share_ratio": "share_ratio",
+      "pay_date": "pay_date"
+    }
+  },
+  "verified_capabilities": {
+    "unadjusted_execution_prices": false,
+    "corporate_actions_complete": false,
+    "market_rules_verified": false,
+    "calendar_complete": false,
+    "signal_adjustment_consistent": false
+  }
+}

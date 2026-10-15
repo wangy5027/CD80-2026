@@ -1,0 +1,164 @@
+{
+  "format": "cd80.capability/1",
+  "kind": "tool",
+  "name": "本地公告列表工具",
+  "description": "本地公告列表工具；只使用明确接入数据，注明来源日期和缺口。",
+  "source": {
+    "identity": "cd80/cd80-announcement-tool",
+    "format": "platform",
+    "version": "1.0.0"
+  },
+  "files": [
+    {
+      "path": "original/query.py",
+      "sha256": "3d635c1fb8e9db74b2bdfd76f75265659576877f6d1fb18cbe16c8d578cc5dba",
+      "size": 6405
+    },
+    {
+      "path": "original/tool.py",
+      "sha256": "7ea2481805078f3fbbbfc0d07ad9ed1678cb6ec34fe3f3639273e29cec0c49a8",
+      "size": 88
+    }
+  ],
+  "dependencies": [],
+  "permissions": {
+    "network": "connector_only",
+    "externalEffects": "none",
+    "inputFiles": false,
+    "outputFiles": false
+  },
+  "tool": {
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "title": "条数"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "title": "跳过条数"
+        },
+        "code": {
+          "type": "string",
+          "maxLength": 16,
+          "title": "证券代码",
+          "description": "两融使用6位数字；其他查询使用交易所后缀，例如600000.SH。"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "title": "指定日期",
+          "description": "YYYY-MM-DD；指定日期与区间互斥。"
+        },
+        "start_date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "title": "开始日期",
+          "description": "YYYY-MM-DD；指定日期与区间互斥。"
+        },
+        "end_date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "title": "结束日期",
+          "description": "YYYY-MM-DD；指定日期与区间互斥。"
+        },
+        "keyword": {
+          "type": "string",
+          "maxLength": 80,
+          "title": "标题关键词"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "python_connector",
+      "path": "original/tool.py",
+      "callable": "run",
+      "connections": [
+        {
+          "identity": "cd80.local-data",
+          "operations": [
+            "query"
+          ]
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "id": "real-query",
+      "title": "本地公告列表真实读取",
+      "description": "实际调用已接入接口，按字段与业务口径核对。",
+      "requirements": [
+        "保存个人工具副本后运行示例，通过后主动启用。"
+      ],
+      "filePaths": [],
+      "input": {
+        "code": "600000.SH",
+        "start_date": "2025-07-01",
+        "end_date": "2025-07-04",
+        "limit": 3
+      },
+      "assertions": [
+        {
+          "path": [
+            "source"
+          ],
+          "op": "eq",
+          "value": "cd80_anns_d"
+        },
+        {
+          "path": [
+            "records"
+          ],
+          "op": "minItems",
+          "value": 1
+        },
+        {
+          "path": [
+            "records"
+          ],
+          "op": "eachType",
+          "value": "object"
+        },
+        {
+          "path": [
+            "records",
+            0,
+            "code"
+          ],
+          "op": "eq",
+          "value": "600000.SH"
+        },
+        {
+          "path": [
+            "records",
+            0,
+            "date"
+          ],
+          "op": "date",
+          "value": "iso-date"
+        },
+        {
+          "path": [
+            "as_of"
+          ],
+          "op": "date",
+          "value": "iso-date"
+        }
+      ],
+      "prompt": "查询600000.SH在2025-07-01至2025-07-04的公告列表，最多3条，只列标题日期和原文链接。"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="240" viewBox="0 0 300 240" fill="none">
+  <defs>
+    <linearGradient id="top" x1="17" y1="0" x2="65" y2="55" gradientUnits="userSpaceOnUse"><stop stop-color="#f8fdff" stop-opacity=".98"/><stop offset="1" stop-color="#a9d7fa" stop-opacity=".7"/></linearGradient>
+    <linearGradient id="left" x1="0" y1="20" x2="45" y2="89" gradientUnits="userSpaceOnUse"><stop stop-color="#d6efff" stop-opacity=".9"/><stop offset="1" stop-color="#6bb1e8" stop-opacity=".74"/></linearGradient>
+    <linearGradient id="right" x1="80" y1="20" x2="40" y2="88" gradientUnits="userSpaceOnUse"><stop stop-color="#8ec8f6" stop-opacity=".72"/><stop offset="1" stop-color="#377ccd" stop-opacity=".78"/></linearGradient>
+    <radialGradient id="shadow"><stop stop-color="#5089bd" stop-opacity=".22"/><stop offset="1" stop-color="#96c8e9" stop-opacity="0"/></radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#3b77a8" flood-opacity=".12"/></filter>
+    <g id="cube" stroke-linejoin="round" stroke-width="1.2"><path d="M2 25 42 3 82 25 42 48Z" fill="url(#top)" stroke="#e7f6ff"/><path d="M2 25 42 48 42 92 2 69Z" fill="url(#left)" stroke="#b6dcf9"/><path d="M42 48 82 25 82 69 42 92Z" fill="url(#right)" stroke="#8fbce8"/><path d="M4 26 42 48 80 27M42 49V90" stroke="#f0faff" stroke-opacity=".82"/><path d="M9 28 39 12 71 28" stroke="white" stroke-opacity=".65"/><path d="M7 34V63L36 80" stroke="white" stroke-opacity=".24"/></g>
+  </defs>
+  <ellipse cx="152" cy="219" rx="92" ry="17" fill="url(#shadow)"/>
+  <g filter="url(#soft)">
+    <use href="#cube" transform="translate(109 34)" opacity=".82"/>
+    <use href="#cube" transform="translate(66 60)" opacity=".9"/>
+    <use href="#cube" transform="translate(153 61)" opacity=".86"/>
+    <use href="#cube" transform="translate(109 87)"/>
+    <use href="#cube" transform="translate(65 105)" opacity=".9"/>
+    <use href="#cube" transform="translate(154 105)" opacity=".92"/>
+    <use href="#cube" transform="translate(109 51)"/>
+  </g>
+</svg>

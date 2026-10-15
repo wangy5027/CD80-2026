@@ -1,0 +1,24 @@
+[
+  {
+    "label": "原预期",
+    "input": {"code": "600000.SH", "date": "2025-07-02", "asset": "stock"},
+    "expectation": {"mode": "fields", "values": {
+      "summary.source": "cd80_daily",
+      "summary.code": "600000.SH",
+      "summary.date": "2025-07-02",
+      "summary.close": "14.2",
+      "summary.marketCompleteness": "unknown"
+    }}
+  },
+  {
+    "label": "不同输入",
+    "input": {"code": "600000.SH", "date": "2025-07-03", "asset": "stock"},
+    "expectation": {"mode": "fields", "values": {
+      "summary.source": "cd80_daily",
+      "summary.code": "600000.SH",
+      "summary.date": "2025-07-03",
+      "summary.close": "14.18",
+      "summary.marketCompleteness": "unknown"
+    }}
+  }
+]

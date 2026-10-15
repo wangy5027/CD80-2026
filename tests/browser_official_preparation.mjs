@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir,writeFile} from 'node:fs/promises';
+const {chromium}=createRequire(import.meta.url)(process.env.PLAYWRIGHT_MODULE_DIR||'playwright');
+const browser=await chromium.launch({headless:true,channel:'msedge'});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});
+const out='data/official-preparation-browser';await mkdir(out,{recursive:true});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const button=name=>page.getByRole('button',{name,exact:true});
+const base='http://127.0.0.1:48996/desktop/api/capabilities';
+try{
+ await page.goto('http://127.0.0.1:48996/desktop/');await button('创建账号').click();
+ await page.locator('input[name="name"]').fill('官方免配置');await page.locator('input[name="email"]').fill(`official-${Date.now()}@example.invalid`);
+ await page.locator('input[name="password"]').fill('fixture-password');await page.locator('form button[type="submit"]').click();await button('扩展').waitFor();
+ const catalog=await(await page.request.get(base+'/assets?scope=public&limit=100')).json();
+ const source=catalog.items.find(a=>a.sourceIdentity==='cd80/cd80-news');
+ const copied=await page.request.post(base+'/assets/'+source.assetId+'/copy',{data:{versionId:source.latestVersionId},headers:{'Idempotency-Key':crypto.randomUUID()}});
+ assert.ok(copied.ok());
+ await button('扩展').click();await page.getByRole('tab',{name:/Skills/}).click();
+ await page.locator('.cap-card').filter({hasText:'已接入财经新闻'}).click();
+ assert.equal(await button('管理连接与凭据').count(),0);
+ await button('准备官方依赖').click();await page.getByText('官方依赖已准备完成，无需配置MCP或数据源。现在可以测试效果。',{exact:true}).waitFor();
+ assert.ok(await button('开始验证').isEnabled());
+ assert.equal(await page.getByLabel('服务地址',{exact:true}).count(),0);
+ const personal=await(await page.request.get(base+'/assets?scope=personal&limit=100')).json();
+ assert.equal(personal.items.find(a=>a.kind==='skill').enabled,false);
+ assert.equal(personal.items.find(a=>a.kind==='tool').enabled,true);
+ await page.screenshot({path:out+'/repaired-skill.png'});
+ await button('← 返回能力列表').click();await page.getByLabel('能力目录').selectOption('public');
+ await page.locator('.cap-card').filter({hasText:'已接入财经新闻'}).click();page.once('dialog',d=>d.accept());await button('保存个人副本').click();
+ await page.getByText('官方连接和所需工具已由平台准备，无需填写地址或密钥。请测试效果，再决定启用。',{exact:true}).waitFor();
+ assert.ok(await button('开始验证').isEnabled());assert.deepEqual(errors,[]);
+ await writeFile(out+'/report.json',JSON.stringify({passed:true,realWasi:true,newsSource:'fixture',checks:['已有缺依赖副本一键修复','官方保存自动准备','无MCP表单','依赖真实验证并可用','主Skill不自动启用'],errors},null,2));
+}catch(e){await page.screenshot({path:out+'/failure.png',fullPage:true});throw e;}finally{await browser.close();}

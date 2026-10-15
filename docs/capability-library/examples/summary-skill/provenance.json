@@ -1,0 +1,19 @@
+{
+  "source": {
+    "identity": "org.example/summary-skill",
+    "format": "agent_skills"
+  },
+  "files": [
+    {
+      "path": "original/references/method.md",
+      "sha256": "f940e74eba1654e45dfa4b2d237f0d7979c236439642b0181e508464a322a921",
+      "size": 100
+    },
+    {
+      "path": "original/SKILL.md",
+      "sha256": "15fa571c88aaebdf68a38663038fb0b76f8aeb5a02510e22610cf5081d610f50",
+      "size": 237
+    }
+  ],
+  "note": "Documentation example; no execution or verification evidence."
+}

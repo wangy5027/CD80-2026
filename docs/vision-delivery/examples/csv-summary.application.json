@@ -1,0 +1,228 @@
+{
+  "format": "infinity-application",
+  "formatVersion": "1",
+  "kind": "pipeline",
+  "definition": {
+    "schemaVersion": "1",
+    "version": "1",
+    "origin": "generated",
+    "name": "外部应用样例：CSV分组求和",
+    "description": "按指定列分组，对数值列精确求和，导出 CSV 和实际结果说明。需要 UTF-8、逗号分隔、有表头的 CSV；不自动填补、丢弃或修复数据。",
+    "goal": "依据用户明确指定的分组列和数值列计算汇总，输出可下载的 summary.csv 和基于实际结果的说明。",
+    "prompt": "你是 CSV 分组汇总应用。使用 csv-summary-report skill，只解释已经执行的 aggregate 步骤结果。说明来源、行数、组数和总计，展示实际预览。不猜测字段、不增加计算、不声称其他文件也已通过验证。",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "fileId",
+        "groupBy",
+        "valueColumn"
+      ],
+      "properties": {
+        "fileId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "本次选择的 CSV 文件 ID"
+        },
+        "groupBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "分组列名，区分大小写"
+        },
+        "valueColumn": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "需要求和的数值列名"
+        },
+        "aggregation": {
+          "type": "string",
+          "const": "sum",
+          "default": "sum",
+          "description": "首版仅支持求和"
+        }
+      },
+      "additionalProperties": false
+    },
+    "outputSchema": {
+      "type": "object",
+      "required": [
+        "explanation",
+        "csvArtifactId",
+        "artifactIds",
+        "stepOutputs"
+      ],
+      "properties": {
+        "explanation": {
+          "type": "string"
+        },
+        "csvArtifactId": {
+          "type": "string"
+        },
+        "artifactIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stepOutputs": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tools": [
+      {
+        "id": "csv-group-sum",
+        "version": "1",
+        "entrypoint": "run",
+        "code": "import csv\nimport re\nfrom decimal import Decimal, InvalidOperation, Inexact, localcontext\n\nNUMBER = re.compile(r\"[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?\\Z\")\n\ndef run(payload):\n    group_column = payload[\"groupBy\"]\n    value_column = payload[\"valueColumn\"]\n    if payload.get(\"aggregation\", \"sum\") != \"sum\":\n        raise ValueError(\"此应用只支持求和（sum）\")\n    totals = {}\n    row_count = 0\n    with localcontext() as context:\n        # Bounded decimal inputs + row count fit exactly in this precision.\n        # Inexact is trapped so unsupported magnitudes never silently round.\n        context.prec = 128\n        context.traps[Inexact] = True\n        total = Decimal(0)\n        with open(payload[\"filePath\"], newline=\"\", encoding=\"utf-8-sig\") as stream:\n            rows = csv.reader(stream, strict=True)\n            headers = next(rows, None)\n            if not headers or any(not name.strip() for name in headers):\n                raise ValueError(\"CSV 必须有非空列名，不能是空文件\")\n            if len(set(headers)) != len(headers):\n                raise ValueError(\"CSV 含重复列名，请先修正\")\n            missing = [name for name in (group_column, value_column) if name not in headers]\n            if missing:\n                raise ValueError(\"CSV 缺少指定列：\" + \"、\".join(missing))\n            group_index = headers.index(group_column)\n            value_index = headers.index(value_column)\n            for row in rows:\n                row_count += 1\n                line = rows.line_num\n                if row_count > 100000:\n                    raise ValueError(\"CSV 数据行超过 100000 行上限\")\n                if len(row) != len(headers):\n                    raise ValueError(\"CSV 第 %d 行与表头列数不一致\" % line)\n                group = row[group_index]\n                if not group.strip():\n                    raise ValueError(\"CSV 第 %d 行分组值为空\" % line)\n                if len(group) > 80:\n                    raise ValueError(\"CSV 第 %d 行分组值超过 80 字符\" % line)\n                raw_value = row[value_index].strip()\n                if not raw_value:\n                    raise ValueError(\"CSV 第 %d 行数值为空\" % line)\n                if len(raw_value) > 128 or NUMBER.fullmatch(raw_value) is None:\n                    raise ValueError(\"CSV 第 %d 行不是有效有限数字\" % line)\n                try:\n                    value = Decimal(raw_value)\n                except InvalidOperation:\n                    raise ValueError(\"CSV 第 %d 行不是有效有限数字\" % line) from None\n                if not value.is_finite():\n                    raise ValueError(\"CSV 第 %d 行数字必须为有限值\" % line)\n                digits = value.as_tuple()\n                if len(digits.digits) > 50 or not -28 <= digits.exponent <= 28:\n                    raise ValueError(\"CSV 第 %d 行超出数值范围（50 位有效数字，小数指数 -28 至 28）\" % line)\n                if group not in totals and len(totals) >= 5000:\n                    raise ValueError(\"CSV 分组超过 5000 组上限\")\n                totals[group] = totals.get(group, Decimal(0)) + value\n                total += value\n        if not row_count:\n            raise ValueError(\"CSV 只有表头，没有数据行\")\n        # Fixed-point text preserves Decimal precision and avoids binary floats.\n        groups = sorted(totals)\n        with open(\"/output/summary.csv\", \"w\", newline=\"\", encoding=\"utf-8\") as stream:\n            writer = csv.writer(stream, lineterminator=\"\\n\")\n            writer.writerow([group_column, \"total_amount\"])\n            for group in groups:\n                writer.writerow([group, format(totals[group], \"f\")])\n        preview = [{\"group\": group, \"total\": format(totals[group], \"f\")} for group in groups[:20]]\n        return {\"artifacts\": [\"summary.csv\"], \"fileId\": payload[\"fileId\"],\n                \"groupBy\": group_column, \"valueColumn\": value_column,\n                \"rowCount\": row_count, \"groupCount\": len(groups), \"total\": format(total, \"f\"),\n                \"preview\": preview, \"previewTruncated\": len(groups) > len(preview)}\n",
+        "description": "只读取当前授权文件，用 Decimal 精确求和。上限 100000 数据行、5000 组、分组值 80 字符；数字最多 50 位有效数字，小数指数 -28 至 28。发现无效输入立即失败。",
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "fileId",
+            "groupBy",
+            "valueColumn"
+          ],
+          "properties": {
+            "fileId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "本次选择的 CSV 文件 ID"
+            },
+            "groupBy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "分组列名，区分大小写"
+            },
+            "valueColumn": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "需要求和的数值列名"
+            },
+            "aggregation": {
+              "type": "string",
+              "const": "sum",
+              "default": "sum",
+              "description": "首版仅支持求和"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "required": [
+            "artifacts",
+            "fileId",
+            "groupBy",
+            "valueColumn",
+            "rowCount",
+            "groupCount",
+            "total",
+            "preview",
+            "previewTruncated"
+          ],
+          "properties": {
+            "artifacts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 1
+            },
+            "fileId": {
+              "type": "string"
+            },
+            "groupBy": {
+              "type": "string"
+            },
+            "valueColumn": {
+              "type": "string"
+            },
+            "rowCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            },
+            "groupCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000
+            },
+            "total": {
+              "type": "string"
+            },
+            "previewTruncated": {
+              "type": "boolean"
+            },
+            "preview": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "required": [
+                  "group",
+                  "total"
+                ],
+                "properties": {
+                  "group": {
+                    "type": "string"
+                  },
+                  "total": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "permissions": {
+          "files": [
+            "fileId"
+          ],
+          "network": false
+        }
+      }
+    ],
+    "skills": [
+      {
+        "id": "csv-summary-report",
+        "version": "1",
+        "requiredTools": [
+          "csv-group-sum"
+        ],
+        "content": "引用 aggregate 实际输出中的 fileId、groupBy、valueColumn、rowCount、groupCount 和 total，保留金额文本精度。preview 仅含前 20 个按分组键升序排列的分组；previewTruncated 为真时必须说明仅展示部分结果，完整结果见 summary.csv。分组使用原始文本，区分大小写，不自行合并或清洗。输入错误时停止，不补值、不丢行、不编造结果。工具执行成功仅证明本次输入完成计算，不能宣称所有金融数据或策略均经过验证。"
+      }
+    ],
+    "pipeline": [
+      {
+        "id": "aggregate",
+        "kind": "tool",
+        "tool": "csv-group-sum",
+        "inputFrom": "run.input",
+        "purpose": "读取授权 CSV、检查格式、分组精确求和并导出"
+      },
+      {
+        "id": "explain",
+        "kind": "model",
+        "inputFrom": "steps.aggregate.output",
+        "purpose": "依据实际行数、组数、总计和有界预览说明结果"
+      }
+    ],
+    "permissions": {
+      "network": false,
+      "files": [
+        "fileId"
+      ]
+    }
+  },
+  "dependencies": [],
+  "provenance": {
+    "type": "platform-example"
+  }
+}
